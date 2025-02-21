@@ -1,45 +1,52 @@
-﻿using CommandLine;
+﻿using System.Reflection;
 using Spectre.Console;
 
 namespace Nomnom;
 
 class Program {
-    static async Task Main(string[] args) {
-        try {
-            // parse the program arguments
-            var parsedArgs = ProgramArgsParser.Parse(args)
-                .WithParsed(o => {
-                    Console.Clear();
-                    
-                    var tree = new Tree("Unity Build to Project");
-                    tree.AddNode( "version  : 0.0.1");
-                    tree.AddNode($"game path: \"{o.GameExecutablePath}\"");
-                    
-                    AnsiConsole.Write(tree);
-                });
-                
-            if (parsedArgs == null) {
-                throw new Exception("Failed to parse args!");
+    public static string OutputFolder {
+        get {
+            var exePath = Assembly.GetEntryAssembly()?.Location;
+            if (!File.Exists(exePath)) {
+                throw new FileNotFoundException(exePath);
             }
-            await StartConversion(parsedArgs.Value);
-        } catch(Exception ex) {
-            AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+            
+            var outputPath = Path.GetFullPath(
+                Path.Combine(
+                    exePath,
+                    ".."
+                )
+            );
+            
+            return outputPath;
         }
     }
     
-    /// <summary>
-    /// Start the process of extracting the game build into a project.
-    /// </summary>
-    static async Task StartConversion(ProgramArgs args) {
-        var buildPath = BuildPath.FromExe(args.GameExecutablePath);
-        var buildMeta = BuildMetadata.Parse(buildPath);
+    static async Task Main(string[] args) {
+        LoadDllsFromLib();
         
-        AnsiConsole.WriteLine(buildMeta.ToString());
+        await AsyncProgram.Run(args);
+    }
+    
+    static void LoadDllsFromLib() {
+        var libPath = Path.Join(
+            OutputFolder,
+            "lib"
+        );
         
-        // extract assets to disk
-        var extractPath = ExtractPath.FromOutputFolder("output");
-        var gameData    = await Extract.ExtractAssets(buildMeta, extractPath);
-        
-        // process assets
+        Console.WriteLine("[underline]Loading dlls from /lib...[/]");
+        foreach (var dll in Directory.GetFiles(libPath, "*.dll", SearchOption.TopDirectoryOnly)) {
+            if (dll == null) continue;
+            
+            var fileName = Path.GetFileNameWithoutExtension(dll);
+            if (!fileName.StartsWith("AssetRipper")) {
+                continue;
+            }
+            
+            try {
+                var assembly = Assembly.LoadFrom(dll);
+                AnsiConsole.MarkupLine($"[italic]Loaded {assembly.GetName().Name}[/]");
+            } catch { }
+        }
     }
 }
