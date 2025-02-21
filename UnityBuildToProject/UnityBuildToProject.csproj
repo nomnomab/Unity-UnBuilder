@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Nomnom</RootNamespace>
@@ -12,6 +12,10 @@
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
     <PackageReference Include="Spectre.Console.Cli" Version="0.49.1" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="../AssetRipper/Source/AssetRipper.Export.UnityProjects/AssetRipper.Export.UnityProjects.csproj" />
   </ItemGroup>
 
 </Project>
