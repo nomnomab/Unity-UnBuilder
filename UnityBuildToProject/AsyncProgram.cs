@@ -52,7 +52,13 @@ public static class AsyncProgram {
         var unityInstall     = UnityPath.FromVersion(unityInstalls, gameData.ProjectVersion.ToString());
         var extractData      = await Extract.ExtractAssets(buildMeta, extractPath);
         
-        // process assets
-        UnityCLI.OpenProject(unityInstall, extractData.Config.ProjectRootPath);
+        // fetch the project package list for the unity version
+        var packageDetection = new PackageDetection(extractData);
+        var packages         = await packageDetection.GetPackagesFromVersion(unityInstall, extractData);
+        
+        // try to determine which packages are for this specific project
+        packageDetection.TryToMapPackagesToProject(packages);
+        
+        // UnityCLI.OpenProject(unityInstall, extractData.Config.ProjectRootPath);
     }
 }

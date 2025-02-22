@@ -19,12 +19,16 @@
     <ProjectReference Include="../AssetRipper/Source/AssetRipper.Export.UnityProjects/AssetRipper.Export.UnityProjects.csproj" />
   </ItemGroup>
   
+  <ItemGroup>
+    <None Update="Resources/ExtractUnityVersionPackages.cs.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  
   <PropertyGroup>
     <PostBuildEvent>
       rmdir /s /q "$(TargetDir)lib"
       if not exist "$(TargetDir)lib" mkdir "$(TargetDir)lib"
       cd /D "$(TargetDir)"
-      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll settings.json /XD lib logs data de fr sv /E /IS /MOVE /NJH /NJS /NP
+      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll settings.json Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources /E /IS /MOVE /NJH /NJS /NP
       exit 0
     </PostBuildEvent>
   </PropertyGroup>

@@ -74,17 +74,9 @@ public static class Extract {
                 continue;
             }
             
-            if (task.IsFaulted) {
-                ctx.Status("Export faulted.");
-                AnsiConsole.MarkupLine("[red]Exported faulted![/]");
-                throw new Exception("Export faulted.");
-            }
-            
-            if (task.IsCanceled) {
-                ctx.Status("Export canceled.");
-                AnsiConsole.MarkupLine("[red]Exported canceled![/]");
-                throw new Exception("Export was canceled.");
-            }
+            ctx.Status("Export faulted.");
+            AnsiConsole.MarkupLine("[red]Exported faulted![/]");
+            throw new Exception("Export faulted.");
         }
     }
     
