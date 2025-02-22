@@ -34,7 +34,7 @@ class Program {
             "lib"
         );
         
-        Console.WriteLine("[underline]Loading dlls from /lib...[/]");
+        AnsiConsole.MarkupLine("[underline]Loading dlls from /lib...[/]");
         foreach (var dll in Directory.GetFiles(libPath, "*.dll", SearchOption.TopDirectoryOnly)) {
             if (dll == null) continue;
             

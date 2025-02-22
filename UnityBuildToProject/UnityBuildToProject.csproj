@@ -24,7 +24,7 @@
       rmdir /s /q "$(TargetDir)lib"
       if not exist "$(TargetDir)lib" mkdir "$(TargetDir)lib"
       cd /D "$(TargetDir)"
-      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll /XD lib logs data de fr sv /E /IS /MOVE /NJH /NJS /NP
+      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll settings.json /XD lib logs data de fr sv /E /IS /MOVE /NJH /NJS /NP
       exit 0
     </PostBuildEvent>
   </PropertyGroup>

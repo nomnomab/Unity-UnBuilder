@@ -23,30 +23,36 @@ public static class AsyncProgram {
             }
             
             // load settings
-            var settings = Settings.Load();
+            var settings = AppSettings.Load();
             if (settings == null) {
                 throw new Exception("Failed to load settings");
             }
             
-            await StartConversion(parsedArgs.Value);
+            await StartConversion(parsedArgs.Value, settings);
         } catch(Exception ex) {
-            AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+            AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
         }
     }
     
     /// <summary>
     /// Start the process of extracting the game build into a project.
     /// </summary>
-    static async Task StartConversion(ProgramArgs args) {
-        var buildPath = BuildPath.FromExe(args.GameExecutablePath);
-        var buildMeta = BuildMetadata.Parse(buildPath);
+    static async Task StartConversion(ProgramArgs args, AppSettings settings) {
+        var unityInstalls = UnityInstallsPath.FromFolder(settings.UnityInstallsFolder);
+        var buildPath     = BuildPath.FromExe(args.GameExecutablePath);
+        var buildMeta     = BuildMetadata.Parse(buildPath);
         
         AnsiConsole.WriteLine(buildMeta.ToString());
         
         // extract assets to disk
-        var extractPath = ExtractPath.FromOutputFolder("output");
-        var gameData    = await Extract.ExtractAssets(buildMeta, extractPath);
+        var extractPath      = ExtractPath.FromOutputFolder("output");
+        var (_, gameData, _) = Extract.ExtractGameData(buildMeta);
+        
+        // fetch the unity install path for later
+        var unityInstall     = UnityPath.FromVersion(unityInstalls, gameData.ProjectVersion.ToString());
+        var extractData      = await Extract.ExtractAssets(buildMeta, extractPath);
         
         // process assets
+        UnityCLI.OpenProject(unityInstall, extractData.Config.ProjectRootPath);
     }
 }

@@ -1,6 +1,5 @@
 using AssetRipper.Export.UnityProjects;
 using AssetRipper.Export.UnityProjects.Configuration;
-using AssetRipper.Import.Configuration;
 using AssetRipper.Import.Logging;
 using AssetRipper.Processing;
 using Spectre.Console;
@@ -8,28 +7,34 @@ using Spectre.Console;
 namespace Nomnom;
 
 public static class Extract {
-    public static async Task<GameData> ExtractAssets(BuildMetadata buildMetadata, ExtractPath extractPath) {
+    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(BuildMetadata buildMetadata) {
+        var config = new LibraryConfiguration();
+        config.LoadFromDefaultPath();
+        
+        var exportHandler = new ExportHandler(config);
+        var inputPath     = buildMetadata.Path.exePath;
+        var gameData      = exportHandler.LoadAndProcess([
+            inputPath
+        ]);
+        
+        return (config, gameData, exportHandler);
+    }
+    
+    public static async Task<ExtractData> ExtractAssets(BuildMetadata buildMetadata, ExtractPath extractPath) {
         AnsiConsole.MarkupLine("[underline]Extracting assets...[/]");
         
         // log with the specific one below
         Logger.Clear();
         Logger.Add(new ExtractLogger());
         
-        var settings = new LibraryConfiguration();
-        settings.LoadFromDefaultPath();
+        var (config, gameData, exportHandler) = ExtractGameData(buildMetadata);
         
-        settings.ImportSettings.ScriptContentLevel = ScriptContentLevel.Level2;
-        settings.ExportSettings.ScriptExportMode   = ScriptExportMode.Decompiled;
+        // settings.ImportSettings.ScriptContentLevel = ScriptContentLevel.Level2;
+        // settings.ExportSettings.ScriptExportMode   = ScriptExportMode.Decompiled;
         
-        PrintLibraryConfiguration(settings, false);
+        PrintLibraryConfiguration(config, false);
         
         await Task.Delay(1000);
-        
-        var exportHandler = new ExportHandler(settings);
-        var inputPath     = buildMetadata.Path.exePath;
-        var gameData      = exportHandler.LoadAndProcess([
-            inputPath
-        ]);
         
         // starts a thread to export with AssetRipper
         // and waits for it to finish or fail
@@ -40,10 +45,13 @@ public static class Extract {
         );
         
         Logger.Clear();
-        PrintLibraryConfiguration(settings, false);
+        PrintLibraryConfiguration(config, false);
         
         // this holds the information about the build folder
-        return gameData;
+        return new ExtractData() {
+            GameData = gameData,
+            Config   = config
+        };
     }
     
     static async Task WaitForAssetRipper(StatusContext ctx, ExtractPath extractPath, ExportHandler exportHandler, GameData gameData) {
