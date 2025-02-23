@@ -57,7 +57,10 @@ public static class AsyncProgram {
         var packages         = await packageDetection.GetPackagesFromVersion(unityInstall, extractData);
         
         // try to determine which packages are for this specific project
-        packageDetection.TryToMapPackagesToProject(packages);
+        var packageTree      = packageDetection.TryToMapPackagesToProject(packages);
+        
+        // now import the packages
+        await packageDetection.ImportPackages(unityInstall, extractData, packageTree);
         
         // UnityCLI.OpenProject(unityInstall, extractData.Config.ProjectRootPath);
     }

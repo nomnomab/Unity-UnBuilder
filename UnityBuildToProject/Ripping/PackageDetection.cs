@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Spectre.Console;
 
@@ -19,14 +20,11 @@ public sealed class PackageDetection {
         var tempProjectPath = Path.Combine(projectPath, "..", "TempProject");
         Directory.CreateDirectory(projectPath);
         
-        var dummyScriptFolder = Path.Combine(tempProjectPath, "Assets", "Editor");
-        Directory.CreateDirectory(dummyScriptFolder);
+        CopyOverScript(tempProjectPath, "RouteStdOutput");
         
         // create a dummy script that will instantly run on load
         // which will extract all of the package information for this unity version
-        var dummyScriptPath = Path.Combine(dummyScriptFolder, "ExtractUnityVersionPackages.cs");
-        var dummyScript     = ReadPackageExtractScript();
-        File.WriteAllText(dummyScriptPath, dummyScript);
+        CopyOverScript(tempProjectPath, "ExtractUnityVersionPackages");
         
         CopyFilesRecursively(
             Path.Combine(projectPath, "ProjectSettings"), 
@@ -34,9 +32,25 @@ public sealed class PackageDetection {
         );
         
         AnsiConsole.MarkupLine("[yellow]Fetching packages from project.[/]");
+        
+        var stepTree = new Panel(@"
+1. Rebuilds the Library folder
+2. Imports base packages
+3. Opens Unity and fetches the packages".TrimStart()) {
+            Header = new PanelHeader("Upcoming steps")
+        };
+        AnsiConsole.Write(stepTree);
         AnsiConsole.WriteLine("This can take a few minutes!");
         
-        await UnityCLI.OpenProjectWithArgs("Fetching packages...", unityPath, tempProjectPath, "-executeMethod ExtractUnityVersionPackages.OnLoad", "-batchmode", "-exit");
+        await UnityCLI.OpenProjectWithArgs("Fetching packages...", unityPath, tempProjectPath, 
+            true,
+            "-disable-assembly-updater",
+            "-silent-crashes",
+            "-batchmode",
+            "-logFile -", 
+            "-executeMethod Nomnom.ExtractUnityVersionPackages.OnLoad",
+            "-exit"
+        );
         
         // now parse the file the extractor created
         var filePath = Path.Combine(tempProjectPath, "packages_output.json");
@@ -54,19 +68,30 @@ public sealed class PackageDetection {
         return packageOutput;
     }
     
-    /// <summary>
-    /// Gets the ExtractUnityVersionPackages script contents from the resources.
-    /// </summary>
-    private static string ReadPackageExtractScript() {
-        var path = Path.Combine(Program.OutputFolder, "Resources", "ExtractUnityVersionPackages.cs.txt");
+    private static void CopyOverScript(string projectPath, string name, Func<string, string>? updateText = null) {
+        var folder = GetEditorScriptFolder(projectPath);
+        Directory.CreateDirectory(folder);
+        
+        var scriptPath   = Path.Combine(folder, $"{name}.cs");
+        var path         = Path.Combine(Program.OutputFolder, "Resources", $"{name}.cs.txt");
         using var stream = new StreamReader(path);
-        return stream.ReadToEnd();
+        var contents     = stream.ReadToEnd();
+        
+        if (updateText != null) {
+            contents = updateText(contents);
+        }
+        
+        File.WriteAllText(scriptPath, contents);
+    }
+    
+    private static string GetEditorScriptFolder(string projectPath) {
+        return Path.Combine(projectPath, "Assets", "Editor");
     }
     
     /// <summary>
     /// Attempts to match the project DLLs with known package associations.
     /// </summary>
-    public void TryToMapPackagesToProject(UnityPackages versionPackages) {
+    public PackageTree TryToMapPackagesToProject(UnityPackages versionPackages) {
         var foundPackages  = new List<PackageInfo>();
         var failedPackages = new List<string>();
         
@@ -98,6 +123,85 @@ public sealed class PackageDetection {
         // build a dependency tree
         var packageTree = PackageTree.Build(foundPackages, versionPackages);
         packageTree.WriteToConsole();
+        
+        return packageTree;
+    }
+    
+    public async Task ImportPackages(UnityPath unityPath, ExtractData extractData, PackageTree packageTree) {
+        var projectPath     = extractData.Config.ProjectRootPath;
+        var tempProjectPath = Path.Combine(projectPath, "..", "TempProject");
+        // var packagesPath    = Path.Combine(tempProjectPath, "Packages");
+        // var manifestPath    = Path.Combine(packagesPath, "manifest.json");
+        
+        CopyOverScript(tempProjectPath, "RouteStdOutput");
+        
+        var packageList = packageTree.GetList().ToArray();
+        CopyOverScript(tempProjectPath, "InstallPackages", x => {
+            return x
+                .Replace("#_PACKAGES_TO_INSTALL_", string.Join(",\n", packageList
+                    .Select(x => {
+                        if (!string.IsNullOrEmpty(x.Item2)) {
+                            return $"{x.Item1}@{x.Item2}";
+                        }
+                        
+                        return x.Item1;
+                    })
+                    .Select(x => $"\"{x}\"")
+                ))
+                .Replace("#_PACKAGE_COUNT", packageList.Length.ToString());
+        });
+        
+        if (packageTree.Has("com.unity.inputsystem")) {
+            // if we have the new input system, add a "enableNativePlatformBackendsForNewInputSystem"
+            // field to supress the popup box
+            var projectSettingsPath = Path.Combine(tempProjectPath, "ProjectSettings", "ProjectSettings.asset");
+            var projectSettingsContent = File.ReadAllLines(projectSettingsPath);
+            
+            // insert after cloudEnabled
+            var sb = new StringBuilder();
+            foreach (var line in projectSettingsContent) {
+                sb.AppendLine(line);
+                if (line.StartsWith("  cloudEnabled:")) {
+                    sb.AppendLine("  enableNativePlatformBackendsForNewInputSystem: 1");
+                }
+            }
+            
+            File.WriteAllText(projectSettingsPath, sb.ToString());
+        }
+        
+        // parse manifest dependencies
+        // var manifestJson    = File.ReadAllText(manifestPath);
+        // var manifestData    = JsonSerializer.Deserialize<PackageManfiest>(manifestJson);
+        
+        // foreach (var (name, version) in packageTree.GetList()) {
+        //     if (manifestData!.dependencies.ContainsKey(name)) continue;
+        //     manifestData!.dependencies.Add(name, version);
+        // }
+
+        // var options = new JsonSerializerOptions(JsonSerializerDefaults.General) {
+        //     WriteIndented = true
+        // };
+        // manifestJson = JsonSerializer.Serialize(manifestData, options);
+        // File.WriteAllText(manifestPath, manifestJson);
+
+        AnsiConsole.MarkupLine("[yellow]Installing packages for the project.[/]");
+        AnsiConsole.WriteLine("This can take a while!");
+        
+        // await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, "-executeMethod InstallPackages.OnLoad", "-exit");
+        
+        // todo: handle error routing
+        await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, 
+            false,
+            "-disable-assembly-updater"
+            // "-silent-crashes",
+            // "-batchmode",
+            // "-logFile -"
+            // "-executeMethod Nomnom.InstallPackages.OnLoad"
+        );
+        
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[red]Deleting[/] the temporary project folder...");
+        Directory.Delete(tempProjectPath, true);
     }
     
     public IEnumerable<string> GetGameAssemblies() {
@@ -135,6 +239,10 @@ public sealed class PackageDetection {
             File.Copy(newPath, to, true);
         }
     }
+}
+
+public class PackageManfiest {
+    public Dictionary<string, string> dependencies { get; set; } = [];
 }
 
 public class UnityPackages {

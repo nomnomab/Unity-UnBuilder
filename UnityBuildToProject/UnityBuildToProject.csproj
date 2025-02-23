@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Nomnom</RootNamespace>
+    <RunPreBuildEvent>Always</RunPreBuildEvent>
     <RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>
 
@@ -20,15 +21,24 @@
   </ItemGroup>
   
   <ItemGroup>
+    <None Update="Resources/RouteStdOutput.cs.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Resources/ExtractUnityVersionPackages.cs.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Resources/InstallPackages.cs.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   
   <PropertyGroup>
-    <PostBuildEvent>
+    <PreBuildEvent>
       rmdir /s /q "$(TargetDir)lib"
+      rmdir /s /q "$(TargetDir)output"
+      exit 0
+    </PreBuildEvent>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <PostBuildEvent>
       if not exist "$(TargetDir)lib" mkdir "$(TargetDir)lib"
       cd /D "$(TargetDir)"
-      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll settings.json Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources /E /IS /MOVE /NJH /NJS /NP
+      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll settings.json Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources output /E /IS /MOVE /NJH /NJS /NP
       exit 0
     </PostBuildEvent>
   </PropertyGroup>

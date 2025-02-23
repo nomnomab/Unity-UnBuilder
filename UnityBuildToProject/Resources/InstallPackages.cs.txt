@@ -1,0 +1,91 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEditor.PackageManager.Requests;
+using UnityEditor.PackageManager;
+using UnityEngine;
+
+namespace Nomnom {
+    public static class InstallPackages {
+        // this gets filled via the tool
+        private static int _remainingCount = #_PACKAGE_COUNT;
+        private static Stack<string> _remaining = new Stack<string>(new string[] {
+#_PACKAGES_TO_INSTALL_
+        });
+        
+        static AddRequest Request;
+        
+        [InitializeOnLoadMethod]
+        public static void RunOnLoad() {
+            var playerSettings = Resources.FindObjectsOfTypeAll<PlayerSettings>().First();
+            var playerSettingsObject = new SerializedObject(playerSettings);
+            playerSettingsObject.Update();
+            
+            if (_remaining.Any(x => x.StartsWith("com.unity.inputsystem"))) {
+                Debug.Log("Has new input system");
+                
+                var buildTargetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
+                var scriptingDefines = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
+                if (!scriptingDefines.Contains("NEW_INPUT_SYSTEM_ENABLED")) {
+                    scriptingDefines.Replace(";NEW_INPUT_SYSTEM_ENABLED", "");
+                    if (true) {
+                        scriptingDefines += ";NEW_INPUT_SYSTEM_ENABLED";
+                    }
+                    
+                    Debug.Log(scriptingDefines);
+                    PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, scriptingDefines);
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                    
+                    return;
+                }
+            }
+            
+            var name = _remaining.Pop();
+            
+            var t = (_remainingCount - _remaining.Count) / (float)_remainingCount;
+            EditorUtility.DisplayProgressBar("Installing packages", "Installing " + name, t);
+            
+            Request  = Client.Add(name);
+            Debug.Log("Installing package: " + name);
+            
+            EditorApplication.update += Progress;
+        }
+        
+        static void Progress() {
+            if (Request == null) {
+                if (_remaining.Count == 0) {
+                    EditorApplication.update -= Progress;
+                    // EditorApplication.Exit(0);
+                    
+                    Debug.Log($"Done installing packages!");
+                    EditorUtility.ClearProgressBar();
+                    
+                    return;
+                }
+                
+                var name = _remaining.Pop();
+                
+                var t = (_remainingCount - _remaining.Count) / (float)_remainingCount;
+                EditorUtility.DisplayProgressBar("Installing packages", "Installing " + name, t);
+                
+                Request  = Client.Add(name);
+                Debug.Log("Installing package: " + name);
+                
+                return;
+            }
+            
+            if (Request.IsCompleted) {
+                if (Request.Status == StatusCode.Success) {
+                    // installed package
+                } else if (Request.Status >= StatusCode.Failure) {
+                    Debug.LogWarning(Request.Error.message);
+                }
+                
+                Request = null;
+            }
+        }
+    }
+}

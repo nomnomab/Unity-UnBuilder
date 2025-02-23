@@ -319,7 +319,11 @@ public record PackageTree {
         return tree;
     }
     
-    private PackageTreeNode? Find(string id) {
+    public bool Has(string id) {
+        return Find(id) != null;
+    }
+    
+    public PackageTreeNode? Find(string id) {
         foreach (var node in Nodes) {
             var found = _Find(id, node);
             if (found != null) {
@@ -344,6 +348,10 @@ public record PackageTree {
             
             return null;
         }
+    }
+    
+    public IEnumerable<(string, string)> GetList() {
+        return Nodes.Select(x => (x.Info.Id, x.Version));
     }
     
     public void WriteToConsole() {

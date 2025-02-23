@@ -6,35 +6,37 @@ using UnityEditor.PackageManager.Requests;
 using UnityEditor.PackageManager;
 using UnityEngine;
 
-[Serializable]
-class ExtractedPackages {
-    public List<UnityEditor.PackageManager.PackageInfo> Packages = new List<UnityEditor.PackageManager.PackageInfo>();
-}
-
-public static class ExtractUnityVersionPackages {
-    static SearchRequest Request;
-
-    public static void OnLoad() {
-        Request = Client.SearchAll();
-        EditorApplication.update += Progress;
+namespace Nomnom {
+    [Serializable]
+    class ExtractedPackages {
+        public List<UnityEditor.PackageManager.PackageInfo> Packages = new List<UnityEditor.PackageManager.PackageInfo>();
     }
-    
-    static void Progress() {
-        if (Request.IsCompleted) {
-            if (Request.Status == StatusCode.Success) {
-                var packages = new ExtractedPackages();
-                foreach (var package in Request.Result) {
-                    packages.Packages.Add(package);
-                }
-                var path = Application.dataPath + "/../packages_output.json";
-                var json = JsonUtility.ToJson(packages, true);
-                File.WriteAllText(path, json);
-            } else if (Request.Status >= StatusCode.Failure) {
-                Debug.Log(Request.Error.message);
-            }
 
-            EditorApplication.update -= Progress;
-            EditorApplication.Exit(0);
+    public static class ExtractUnityVersionPackages {
+        static SearchRequest Request;
+
+        public static void OnLoad() {
+            Request = Client.SearchAll();
+            EditorApplication.update += Progress;
+        }
+        
+        static void Progress() {
+            if (Request.IsCompleted) {
+                if (Request.Status == StatusCode.Success) {
+                    var packages = new ExtractedPackages();
+                    foreach (var package in Request.Result) {
+                        packages.Packages.Add(package);
+                    }
+                    var path = Application.dataPath + "/../packages_output.json";
+                    var json = JsonUtility.ToJson(packages, true);
+                    File.WriteAllText(path, json);
+                } else if (Request.Status >= StatusCode.Failure) {
+                    Debug.Log(Request.Error.message);
+                }
+
+                EditorApplication.update -= Progress;
+                EditorApplication.Exit(0);
+            }
         }
     }
 }
