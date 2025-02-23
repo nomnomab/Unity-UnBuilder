@@ -5,11 +5,11 @@ namespace Nomnom;
 
 // https://docs.unity3d.com/Manual/EditorCommandLineArguments.html
 public static class UnityCLI {
-    public static async Task CreateProject(UnityPath unityPath, string projectPath) {
-        await CreateProjectWithArgs(unityPath, projectPath, []);
+    public static async Task CreateProject(string message, UnityPath unityPath, string projectPath) {
+        await CreateProjectWithArgs(message, unityPath, projectPath, []);
     }
     
-    public static async Task CreateProjectWithArgs(UnityPath unityPath, string projectPath, params string[] args) {
+    public static async Task CreateProjectWithArgs(string message, UnityPath unityPath, string projectPath, params string[] args) {
         if (!Directory.Exists(projectPath)) {
             throw new DirectoryNotFoundException(projectPath);
         }
@@ -38,16 +38,16 @@ public static class UnityCLI {
         
         await AnsiConsole.Status()
             .Spinner(Spinner.Known.Star)
-            .StartAsync("Creating Project...", 
+            .StartAsync(message, 
             async ctx => await WaitForProcess(ctx, process)
         );
     }
     
-    public static async Task OpenProject(UnityPath unityPath, string projectPath) {
-        await OpenProjectWithArgs(unityPath, projectPath, []);
+    public static async Task OpenProject(string message, UnityPath unityPath, string projectPath) {
+        await OpenProjectWithArgs(message, unityPath, projectPath, []);
     }
     
-    public static async Task OpenProjectWithArgs(UnityPath unityPath, string projectPath, params string[] args) {
+    public static async Task OpenProjectWithArgs(string message, UnityPath unityPath, string projectPath, params string[] args) {
         if (!Directory.Exists(projectPath)) {
             throw new DirectoryNotFoundException(projectPath);
         }
@@ -74,8 +74,8 @@ public static class UnityCLI {
         }
         
         await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Star)
-            .StartAsync("Opening Project...", 
+            .Spinner(Spinner.Known.Aesthetic)
+            .StartAsync(message, 
             async ctx => await WaitForProcess(ctx, process)
         );
     }

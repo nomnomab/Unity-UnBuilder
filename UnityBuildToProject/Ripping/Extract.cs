@@ -39,7 +39,7 @@ public static class Extract {
         // starts a thread to export with AssetRipper
         // and waits for it to finish or fail
         await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Star)
+            .Spinner(Spinner.Known.Aesthetic)
             .StartAsync("Exporting...", 
             async ctx => await WaitForAssetRipper(ctx, extractPath, exportHandler, gameData)
         );

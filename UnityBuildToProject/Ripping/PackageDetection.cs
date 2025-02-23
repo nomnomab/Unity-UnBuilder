@@ -33,7 +33,10 @@ public sealed class PackageDetection {
             Path.Combine(tempProjectPath, "ProjectSettings")
         );
         
-        await UnityCLI.OpenProjectWithArgs(unityPath, tempProjectPath, "-executeMethod ExtractUnityVersionPackages.OnLoad", "-exit");
+        AnsiConsole.MarkupLine("[yellow]Fetching packages from project.[/]");
+        AnsiConsole.WriteLine("This can take a few minutes!");
+        
+        await UnityCLI.OpenProjectWithArgs("Fetching packages...", unityPath, tempProjectPath, "-executeMethod ExtractUnityVersionPackages.OnLoad", "-batchmode", "-exit");
         
         // now parse the file the extractor created
         var filePath = Path.Combine(tempProjectPath, "packages_output.json");
