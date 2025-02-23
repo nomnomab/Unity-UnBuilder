@@ -42,6 +42,8 @@ public sealed class PackageDetection {
         AnsiConsole.Write(stepTree);
         AnsiConsole.WriteLine("This can take a few minutes!");
         
+        await Task.Delay(3000);
+        
         await UnityCLI.OpenProjectWithArgs("Fetching packages...", unityPath, tempProjectPath, 
             true,
             "-disable-assembly-updater",
@@ -49,7 +51,8 @@ public sealed class PackageDetection {
             "-batchmode",
             "-logFile -", 
             "-executeMethod Nomnom.ExtractUnityVersionPackages.OnLoad",
-            "-exit"
+            "-exit",
+            "| Write-Output"
         );
         
         // now parse the file the extractor created
@@ -184,19 +187,30 @@ public sealed class PackageDetection {
         // manifestJson = JsonSerializer.Serialize(manifestData, options);
         // File.WriteAllText(manifestPath, manifestJson);
 
-        AnsiConsole.MarkupLine("[yellow]Installing packages for the project.[/]");
+        AnsiConsole.MarkupLine("[yellow]Installing packages into project.[/]");
+        
+        var stepTree = new Panel(@"
+1. Installs each package in sequence
+2. Closes once complete".TrimStart()) {
+            Header = new PanelHeader("Upcoming steps")
+        };
+        AnsiConsole.Write(stepTree);
         AnsiConsole.WriteLine("This can take a while!");
+        
+        await Task.Delay(3000);
         
         // await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, "-executeMethod InstallPackages.OnLoad", "-exit");
         
         // todo: handle error routing
         await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, 
-            false,
-            "-disable-assembly-updater"
-            // "-silent-crashes",
-            // "-batchmode",
-            // "-logFile -"
-            // "-executeMethod Nomnom.InstallPackages.OnLoad"
+            true,
+            "-disable-assembly-updater",
+            "-silent-crashes",
+            "-batchmode",
+            "-logFile -",
+            "-executeMethod Nomnom.InstallPackages.OnLoad",
+            "-exit",
+            "| Write-Output"
         );
         
         AnsiConsole.WriteLine();

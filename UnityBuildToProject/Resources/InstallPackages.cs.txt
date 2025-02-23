@@ -17,8 +17,7 @@ namespace Nomnom {
         
         static AddRequest Request;
         
-        [InitializeOnLoadMethod]
-        public static void RunOnLoad() {
+        static void UpdateSettings() {
             var playerSettings = Resources.FindObjectsOfTypeAll<PlayerSettings>().First();
             var playerSettingsObject = new SerializedObject(playerSettings);
             playerSettingsObject.Update();
@@ -38,13 +37,44 @@ namespace Nomnom {
                     PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, scriptingDefines);
                     AssetDatabase.SaveAssets();
                     AssetDatabase.Refresh();
-                    
-                    return;
                 }
             }
+        }
+        
+        public static void OnLoad() {
+            UpdateSettings();
+            
+            Debug.Log(_remainingCount + " packages to install!");
+            while (_remaining.Count > 0) {
+                var name = _remaining.Pop();
+                
+                Debug.Log("Installing package: " + name);
+                Request  = Client.Add(name);
+                
+                while (!Request.IsCompleted) { }
+                
+                Debug.Log("Status: " + Request.Status);
+                
+                if (Request.Status == StatusCode.Success) {
+                    // installed package
+                } else if (Request.Status >= StatusCode.Failure) {
+                    Debug.LogWarning(Request.Error.message);
+                }
+                
+                Request = null;
+            }
+            
+            Debug.Log($"Done installing packages!");
+            EditorUtility.ClearProgressBar();
+            EditorApplication.Exit(0);
+        }
+        
+        [InitializeOnLoadMethod]
+        public static void RunOnLoad() {
+            return;
+            UpdateSettings();
             
             var name = _remaining.Pop();
-            
             var t = (_remainingCount - _remaining.Count) / (float)_remainingCount;
             EditorUtility.DisplayProgressBar("Installing packages", "Installing " + name, t);
             
@@ -57,11 +87,11 @@ namespace Nomnom {
         static void Progress() {
             if (Request == null) {
                 if (_remaining.Count == 0) {
-                    EditorApplication.update -= Progress;
-                    // EditorApplication.Exit(0);
-                    
                     Debug.Log($"Done installing packages!");
                     EditorUtility.ClearProgressBar();
+                    
+                    EditorApplication.update -= Progress;
+                    EditorApplication.Exit(0);
                     
                     return;
                 }

@@ -63,23 +63,43 @@ public static class UnityCLI {
             },
         };
         
+        const string PREFIX = "from_patcher::";
         if (routeStd) {
             process.StartInfo.RedirectStandardError  = true;
-            // process.StartInfo.RedirectStandardOutput = true;
-            // process.StartInfo.UseShellExecute        = false;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.UseShellExecute        = false;
             
-            // process.OutputDataReceived += (a, b) => {
-            //     AnsiConsole.WriteLine($"OUTPUT: {b.Data}");
-            // };
+            process.OutputDataReceived += (a, b) => {
+                var data = b.Data;
+                if (data != null) {
+                    if (data.StartsWith(PREFIX)) {
+                        AnsiConsole.MarkupLine(data[PREFIX.Length..]);
+                    } else {
+                        AnsiConsole.MarkupLineInterpolated($"[grey]Info[/]: {data}");
+                    }
+                }
+            };
             
             process.ErrorDataReceived += (a, b) => {
-                AnsiConsole.Markup("[red]ERROR[/]: ");
-                AnsiConsole.Write(b.Data ?? "null");
+                var data = b.Data;
+                if (data != null) {
+                    AnsiConsole.Markup("[red]ERROR[/]: ");
+                    if (data.StartsWith(PREFIX)) {
+                        AnsiConsole.MarkupLine(data[PREFIX.Length..]);
+                    } else {
+                        AnsiConsole.WriteLine(data);
+                    }
+                }
             };
         }
         
         if (!process.Start()) {
             throw new Exception("Failed to start process");
+        }
+        
+        if (routeStd) {
+            process.BeginErrorReadLine();
+            process.BeginOutputReadLine();
         }
         
         await AnsiConsole.Status()
@@ -91,13 +111,7 @@ public static class UnityCLI {
         // finish
         AnsiConsole.MarkupLine($"Exit Code: {process.ExitCode}");
         
-        if (routeStd) {
-            var error  = process.StandardError.ReadToEnd();
-            if (!string.IsNullOrEmpty(error)) {
-                AnsiConsole.Markup("[red]ERROR[/]: ");
-                AnsiConsole.Write(error ?? "null");
-            }
-        }
+        await Task.Delay(500);
     }
     
     static async Task WaitForProcess(StatusContext ctx, Process process) {
@@ -107,7 +121,7 @@ public static class UnityCLI {
             // todo: handle exit code
             if (process.HasExited) {
                 ctx.Status("Process has exited!");
-                AnsiConsole.MarkupLine("[green]Process exited![/]");
+                AnsiConsole.MarkupLine("\n[green]Process exited![/]\n");
                 break;
             }
         }
