@@ -1,9 +1,145 @@
+using AssetRipper.Export.Modules.Textures;
 using AssetRipper.Export.UnityProjects.Configuration;
+using AssetRipper.Import.Configuration;
 using AssetRipper.Processing;
+using AssetRipper.Processing.Configuration;
+using Tomlet.Attributes;
 
 namespace Nomnom;
 
 public record ExtractData {
     public required GameData GameData;
     public required LibraryConfiguration Config;
-};
+    
+    public string GetTempProjectPath() {
+        return Path.Combine(Config.ProjectRootPath, "..", "TempProject");
+    }
+}
+
+public record ExtractSettings {
+    // import
+    [TomlPrecedingComment(@"Options:
+Level 0 = Scripts are not loaded.
+Level 1 = Methods are stubbed during processing.
+Level 2 = This level is the default. It has full methods for Mono games and empty methods for IL2Cpp games.
+Level 3 = IL2Cpp methods are safely recovered where possible.
+Level 4 = IL2Cpp methods are recovered without regard to safety. Currently the same as Level2.")]
+    public required ScriptContentLevel ScriptContentLevel { get; set; }
+    [TomlPrecedingComment(@"Options:
+Ignore
+Extract")]
+    public required StreamingAssetsMode StreamingAssetsMode { get; set; }
+    public required bool IgnoreStreamingAssets { get; set; }
+    
+    // export
+    [TomlPrecedingComment(@"Options:
+Yaml      = Export as a yaml asset and resS file. This is a safe option and is the backup when things go wrong.
+Native    = For advanced users. This exports in a native format, usually FSB (FMOD Sound Bank). FSB files cannot be used in Unity Editor.
+Default   = This is the recommended option. Audio assets are exported in the compression of the source, usually OGG.
+PreferWav = Not advised if rebundling. This converts audio to the WAV format when possible.")]
+    public required AudioExportFormat AudioExportFormat { get; set; }
+    [TomlPrecedingComment(@"Options:
+Bytes = Export as bytes.
+Txt   = Export as plain text files.
+Parse = Export as plain text files, but try to guess the file extension.")]
+    public required TextExportMode TextExportMode { get; set; }
+    [TomlPrecedingComment(@"Options:
+Yaml      = Export as yaml assets which can be viewed in the editor.
+            This is the only mode that ensures a precise recovery of all metadata of sprites.
+            * See: https://github.com/trouger/AssetRipper/issues/2
+Native    = Export in the native asset format, where all sprites data are stored in texture importer settings.
+            The output from this mode was substantially changed by https://github.com/AssetRipper/AssetRipper/commit/084b3e5ea7826ac2f54ed2b11cbfbbf3692ddc9c
+            Using this is inadvisable.
+Texture2D = Export as a Texture2D png image.
+            The output from this mode was substantially changed by https://github.com/AssetRipper/AssetRipper/commit/084b3e5ea7826ac2f54ed2b11cbfbbf3692ddc9c
+            Using this is inadvisable.")]
+    public required SpriteExportMode SpriteExportMode { get; set; }
+    [TomlPrecedingComment(@"Options:
+Dummy       = Export as dummy shaders which compile in the editor.
+Yaml        = Export as yaml assets which can be viewed in the editor.
+Disassembly = Export as disassembly which does not compile in the editor.
+Decompile   = Export as decompiled hlsl (unstable!).")]
+    public required ShaderExportMode ShaderExportMode { get; set; }
+    [TomlPrecedingComment(@"Options:
+AutoExperimental
+AutoSafe
+CSharp1
+CSharp2
+CSharp3
+CSharp4
+CSharp5
+CSharp6
+CSharp7
+CSharp7_1
+CSharp7_2
+CSharp7_3
+CSharp8_0
+CSharp9_0
+CSharp10_0
+CSharp11_0
+CSharp12_0
+Latest")]
+    public required ScriptLanguageVersion ScriptLanguageVersion { get; set; }
+    [TomlPrecedingComment(@"Options:
+Decompiled               = Use the ILSpy decompiler to generate CS scripts. This is reliable. However, it's also time-consuming and contains many compile errors.
+Hybrid                   = Special assemblies, such as Assembly-CSharp, are decompiled to CS scripts with the ILSpy decompiler. Other assemblies are saved as DLL files.
+DllExportWithRenaming    = Special assemblies, such as Assembly-CSharp, are renamed to have compatible names.
+DllExportWithoutRenaming = Export assemblies in their compiled Dll form. Experimental. Might not work at all.")]
+    public required ScriptExportMode ScriptExportMode { get; set; }
+    [TomlPrecedingComment(@"Options:
+Exr
+Image
+Yaml  = The internal Unity format")]
+    public required LightmapTextureExportFormat LightmapTextureExportFormat { get; set; }
+    [TomlPrecedingComment(@"Options:
+Bmp  = Lossless. Bitmap.
+Exr  = Lossless. OpenEXR.
+Hdr  = Lossless. Radiance HDR.
+Jpeg = Lossy.    Joint Photographic Experts Group.
+Png  = Lossless. Portable Network Graphics.
+Tga  = Lossless. Truevision TGA.")]
+    public required ImageExportFormat ImageExportFormat { get; set; }
+    
+    // processing
+    [TomlPrecedingComment("Only available with AssetRipper Premium.")]
+    public required bool EnablePrefabOutlining { get; set; }
+    [TomlPrecedingComment("Only available with AssetRipper Premium.")]
+    public required bool EnableStaticMeshSeparation { get; set; }
+    [TomlPrecedingComment("Only available with AssetRipper Premium.")]
+    public required bool EnableAssetDeduplication { get; set; }
+    [TomlPrecedingComment(@"Options:
+GroupByAssetType  = Bundled assets are treated the same as assets from other files.
+GroupByBundleName = Bundled assets are grouped by their asset bundle name.
+                    For example: Assets/Asset_Bundles/NameOfAssetBundle/InternalPath1/.../InternalPathN/assetName.extension
+DirectExport      = Bundled assets are exported without grouping.
+                    For example: Assets/InternalPath1/.../InternalPathN/bundledAssetName.extension")]
+    public required BundledAssetsExportMode BundledAssetsExportMode { get; set; }
+    
+    public static ExtractSettings Default {
+        get {
+            var import     = new ImportSettings();
+            var export    = new ExportSettings();
+            var processing = new ProcessingSettings();
+            
+            return new ExtractSettings() {
+                ScriptContentLevel          = import.ScriptContentLevel,
+                StreamingAssetsMode         = import.StreamingAssetsMode,
+                IgnoreStreamingAssets       = import.IgnoreStreamingAssets,
+                
+                AudioExportFormat           = export.AudioExportFormat,
+                TextExportMode              = export.TextExportMode,
+                SpriteExportMode            = export.SpriteExportMode,
+                ShaderExportMode            = export.ShaderExportMode,
+                ScriptLanguageVersion       = export.ScriptLanguageVersion,
+                ScriptExportMode            = export.ScriptExportMode,
+                LightmapTextureExportFormat = export.LightmapTextureExportFormat,
+                ImageExportFormat           = export.ImageExportFormat,
+                
+                EnablePrefabOutlining       = processing.EnablePrefabOutlining,
+                EnableStaticMeshSeparation  = processing.EnableStaticMeshSeparation,
+                EnableAssetDeduplication    = processing.EnableAssetDeduplication,
+                BundledAssetsExportMode     = processing.BundledAssetsExportMode
+            };
+        }
+    }
+}

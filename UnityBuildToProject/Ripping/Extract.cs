@@ -7,9 +7,28 @@ using Spectre.Console;
 namespace Nomnom;
 
 public static class Extract {
-    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(BuildMetadata buildMetadata) {
+    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(AppSettings settings, BuildMetadata buildMetadata) {
         var config = new LibraryConfiguration();
         config.LoadFromDefaultPath();
+        
+        if (settings.ExtractSettings != null) {
+            config.ImportSettings.ScriptContentLevel             = settings.ExtractSettings.ScriptContentLevel;
+            config.ImportSettings.StreamingAssetsMode            = settings.ExtractSettings.StreamingAssetsMode;
+            
+            config.ExportSettings.AudioExportFormat              = settings.ExtractSettings.AudioExportFormat;
+            config.ExportSettings.TextExportMode                 = settings.ExtractSettings.TextExportMode;
+            config.ExportSettings.SpriteExportMode               = settings.ExtractSettings.SpriteExportMode;
+            config.ExportSettings.ShaderExportMode               = settings.ExtractSettings.ShaderExportMode;
+            config.ExportSettings.ScriptLanguageVersion          = settings.ExtractSettings.ScriptLanguageVersion;
+            config.ExportSettings.ScriptExportMode               = settings.ExtractSettings.ScriptExportMode;
+            config.ExportSettings.LightmapTextureExportFormat    = settings.ExtractSettings.LightmapTextureExportFormat;
+            config.ExportSettings.ImageExportFormat              = settings.ExtractSettings.ImageExportFormat;
+            
+            config.ProcessingSettings.EnablePrefabOutlining      = settings.ExtractSettings.EnablePrefabOutlining;
+            config.ProcessingSettings.EnableStaticMeshSeparation = settings.ExtractSettings.EnableStaticMeshSeparation;
+            config.ProcessingSettings.EnableAssetDeduplication   = settings.ExtractSettings.EnableAssetDeduplication;
+            config.ProcessingSettings.BundledAssetsExportMode    = settings.ExtractSettings.BundledAssetsExportMode;
+        }
         
         var exportHandler = new ExportHandler(config);
         var inputPath     = buildMetadata.Path.exePath;
@@ -20,17 +39,15 @@ public static class Extract {
         return (config, gameData, exportHandler);
     }
     
-    public static async Task<ExtractData> ExtractAssets(BuildMetadata buildMetadata, ExtractPath extractPath) {
+    public static async Task<ExtractData> ExtractAssets(AppSettings settings, BuildMetadata buildMetadata, ExtractPath extractPath) {
         AnsiConsole.MarkupLine("[underline]Extracting assets...[/]");
         
         // log with the specific one below
         Logger.Clear();
         Logger.Add(new ExtractLogger());
         
-        var (config, gameData, exportHandler) = ExtractGameData(buildMetadata);
+        var (config, gameData, exportHandler) = ExtractGameData(settings, buildMetadata);
         
-        // settings.ImportSettings.ScriptContentLevel = ScriptContentLevel.Level2;
-        // settings.ExportSettings.ScriptExportMode   = ScriptExportMode.Decompiled;
         
         PrintLibraryConfiguration(config, false);
         
@@ -91,8 +108,6 @@ public static class Extract {
             new($"Auxiliary Files Path      : \"{config.AuxiliaryFilesPath}\""),
             new($"Project Settings Path     : \"{config.ProjectSettingsPath}\""),
             new($"Disable Script Import     : {config.DisableScriptImport}"),
-            new($"Bundled Assets Export Mode: {config.ProcessingSettings.BundledAssetsExportMode}"),
-            new($"Bundled Assets Export Mode: {config.ProcessingSettings.BundledAssetsExportMode}"),
             new($"Bundled Assets Export Mode: {config.ProcessingSettings.BundledAssetsExportMode}"),
             new($"Script Level              : {config.ImportSettings.ScriptContentLevel}"),
             new($"Ignore Streaming Assets   : {config.ImportSettings.IgnoreStreamingAssets}"),

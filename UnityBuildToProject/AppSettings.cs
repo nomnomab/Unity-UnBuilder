@@ -1,6 +1,6 @@
 using System.Reflection;
-using System.Text;
-using System.Text.Json;
+using Tomlet;
+using Tomlet.Attributes;
 
 namespace Nomnom;
 
@@ -8,18 +8,26 @@ public record AppSettings {
     /// <summary>
     /// Where the Unity Hub is located.
     /// <br/><br/>
-    /// On Windows this is typically: "C:\Program Files\Unity Hub"
+    /// On Windows this is typically: "C:/Program Files/Unity Hub"
     /// </summary>
-    public required string UnityHubFolder { get; set; }
+    [TomlPrecedingComment(@"Where the Unity Hub is located.
+
+On Windows this is typically: ""C:/Program Files/Unity Hub"".")]
+    public string? UnityHubFolder { get; set; }
     
     /// <summary>
     /// The folder that contains all of the unity installations.
     /// <br/><br/>
-    /// On Windows this is typically: "C:\Program Files\Unity\Hub\Editor".
+    /// On Windows this is typically: "C:/Program Files/Unity/Hub/Editor".
     /// </summary>
-    public required string UnityInstallsFolder { get; set; }
+    [TomlPrecedingComment(@"The folder that contains all of the unity installations.
+
+On Windows this is typically: ""C:/Program Files/Unity/Hub/Editor"".")]
+    public string? UnityInstallsFolder { get; set; }
     
-    private static string SavePath {
+    public ExtractSettings? ExtractSettings { get; set; }
+    
+    public static string SavePath {
         get {
             var exePath = Assembly.GetEntryAssembly()?.Location;
             if (!File.Exists(exePath)) {
@@ -30,7 +38,7 @@ public record AppSettings {
                 Path.Combine(
                     exePath,
                     "..",
-                    "settings.json"
+                    "settings.toml"
                 )
             );
             
@@ -50,34 +58,46 @@ public record AppSettings {
             unix   : "",
             macOs  : ""
         ).GetValue(),
+        
+        ExtractSettings     = ExtractSettings.Default,
     };
     
     public static AppSettings? Load() {
         var path = SavePath;
         if (!File.Exists(path)) {
             Save(Default);
+            return null;
         }
         
         // load contents
         var contents = File.ReadAllText(path);
-        var settings = JsonSerializer.Deserialize<AppSettings>(contents)!;
+        var settings = TomletMain.To<AppSettings>(contents);
         
         // verify values are assigned
         if (!Directory.Exists(settings.UnityInstallsFolder)) {
             throw new InvalidAppSettingsFieldException(nameof(UnityInstallsFolder));
         }
         
+        Save(settings);
+        
         return settings;
     }
     
     public static void Save(AppSettings settings) {
         var path   = SavePath;
-        var config = new JsonSerializerOptions(JsonSerializerDefaults.General) {
-            WriteIndented = true
-        };
-
-        var contents = JsonSerializer.Serialize(settings, config);
+        
+        var contents = TomletMain.TomlStringFrom(settings);
         File.WriteAllText(path, contents);
+    }
+    
+    public static void Validate(AppSettings settings) {
+        if (string.IsNullOrEmpty(settings.UnityHubFolder)) {
+            throw new Exception("UnityHubFolder was not assigned in the settings.toml");
+        }
+        
+        if (string.IsNullOrEmpty(settings.UnityInstallsFolder)) {
+            throw new Exception("UnityInstallsFolder was not assigned in the settings.toml");
+        }
     }
 }
 

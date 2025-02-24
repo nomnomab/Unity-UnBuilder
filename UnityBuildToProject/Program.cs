@@ -23,9 +23,26 @@ class Program {
     }
     
     static async Task Main(string[] args) {
-        LoadDllsFromLib();
+        try {
+            LoadDllsFromLib();
         
-        await AsyncProgram.Run(args);
+            // load settings
+            var settings = AppSettings.Load();
+            if (settings == null) {
+                var panel = new Panel(@$"Looks like your [underline]first time[/] running this tool!
+    A settings.toml was created for you next to the .exe, go ahead and modify it before running the tool again. 🙂
+
+    {AppSettings.SavePath}");
+                AnsiConsole.Write(panel);
+                return;
+            }
+            
+            AppSettings.Validate(settings);
+            
+            await AsyncProgram.Run(settings, args);
+        } catch(Exception ex) {
+            AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
+        }
     }
     
     static void LoadDllsFromLib() {

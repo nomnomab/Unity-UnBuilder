@@ -34,6 +34,7 @@ namespace Nomnom {
                 color = "red";
             }
             
+            // todo: trim until UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
             Console.WriteLine(string.Format("from_patcher::[{0}]{1}[/]: {2}", color, logType, string.Format(format, args)));
         }
 

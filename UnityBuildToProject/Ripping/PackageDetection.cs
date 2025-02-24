@@ -15,11 +15,11 @@ public sealed class PackageDetection {
     /// Extracts the packages from a dummy project that uses project settings from
     /// the AssetRipper exported project.
     /// </summary>s
-    public async Task<UnityPackages> GetPackagesFromVersion(UnityPath unityPath, ExtractData extractData) {
-        var projectPath     = extractData.Config.ProjectRootPath;
-        var tempProjectPath = Path.Combine(projectPath, "..", "TempProject");
+    public async Task<UnityPackages> GetPackagesFromVersion(UnityPath unityPath) {
+        var projectPath     = _extractData.Config.ProjectRootPath;
         Directory.CreateDirectory(projectPath);
         
+        var tempProjectPath = _extractData.GetTempProjectPath();
         CopyOverScript(tempProjectPath, "RouteStdOutput");
         
         // create a dummy script that will instantly run on load
@@ -130,11 +130,8 @@ public sealed class PackageDetection {
         return packageTree;
     }
     
-    public async Task ImportPackages(UnityPath unityPath, ExtractData extractData, PackageTree packageTree) {
-        var projectPath     = extractData.Config.ProjectRootPath;
-        var tempProjectPath = Path.Combine(projectPath, "..", "TempProject");
-        // var packagesPath    = Path.Combine(tempProjectPath, "Packages");
-        // var manifestPath    = Path.Combine(packagesPath, "manifest.json");
+    public async Task ImportPackages(UnityPath unityPath, PackageTree packageTree) {
+        var tempProjectPath = _extractData.GetTempProjectPath();
         
         CopyOverScript(tempProjectPath, "RouteStdOutput");
         
@@ -172,21 +169,6 @@ public sealed class PackageDetection {
             File.WriteAllText(projectSettingsPath, sb.ToString());
         }
         
-        // parse manifest dependencies
-        // var manifestJson    = File.ReadAllText(manifestPath);
-        // var manifestData    = JsonSerializer.Deserialize<PackageManfiest>(manifestJson);
-        
-        // foreach (var (name, version) in packageTree.GetList()) {
-        //     if (manifestData!.dependencies.ContainsKey(name)) continue;
-        //     manifestData!.dependencies.Add(name, version);
-        // }
-
-        // var options = new JsonSerializerOptions(JsonSerializerDefaults.General) {
-        //     WriteIndented = true
-        // };
-        // manifestJson = JsonSerializer.Serialize(manifestData, options);
-        // File.WriteAllText(manifestPath, manifestJson);
-
         AnsiConsole.MarkupLine("[yellow]Installing packages into project.[/]");
         
         var stepTree = new Panel(@"
@@ -199,9 +181,6 @@ public sealed class PackageDetection {
         
         await Task.Delay(3000);
         
-        // await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, "-executeMethod InstallPackages.OnLoad", "-exit");
-        
-        // todo: handle error routing
         await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, 
             true,
             "-disable-assembly-updater",
@@ -212,10 +191,6 @@ public sealed class PackageDetection {
             "-exit",
             "| Write-Output"
         );
-        
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[red]Deleting[/] the temporary project folder...");
-        Directory.Delete(tempProjectPath, true);
     }
     
     public IEnumerable<string> GetGameAssemblies() {

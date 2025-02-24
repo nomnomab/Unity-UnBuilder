@@ -11,10 +11,10 @@ The main goal of this project is to make a better version of my prior build->pro
 
 [x] Grab game information
 [x] Extract assets from AssetRipper into an output folder
-[ ] Load packages for unity version for a lookup
+[x] Load packages for unity version for a lookup
     [ ] Cache results per unity version next to exe
     [ ] Keep a self-made list of associations and have version overrides if needed
-[ ] Match all available packages to the ones in the game via DLLs
+[x] Match all available packages to the ones in the game via DLLs
     [ ] Prompt when there are some that don't match
 [ ] Connect the package files to the output files
 [ ] Verify Unity project
