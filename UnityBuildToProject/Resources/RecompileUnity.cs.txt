@@ -1,0 +1,24 @@
+using UnityEditor;
+#if UNITY_2019_3_OR_NEWER
+using UnityEditor.Compilation;
+#elif UNITY_2017_1_OR_NEWER
+using System.Reflection;
+#endif
+using UnityEngine;
+
+namespace Nomnom {
+    public static class RecompileUnity {
+        public static void OnLoad() {
+#if UNITY_2019_3_OR_NEWER
+                CompilationPipeline.RequestScriptCompilation();
+#elif UNITY_2017_1_OR_NEWER
+                var editorAssembly = Assembly.GetAssembly(typeof(Editor));
+                var editorCompilationInterfaceType = editorAssembly.GetType("UnityEditor.Scripting.ScriptCompilation.EditorCompilationInterface");
+                var dirtyAllScriptsMethod = editorCompilationInterfaceType.GetMethod("DirtyAllScripts", BindingFlags.Static | BindingFlags.Public);
+                dirtyAllScriptsMethod.Invoke(editorCompilationInterfaceType, null);
+#endif
+            
+            AssetDatabase.Refresh();
+        }
+    }
+}

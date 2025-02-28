@@ -1,0 +1,271 @@
+using Spectre.Console;
+
+namespace Nomnom;
+
+/// <summary>
+/// Stores all of the needed guids per relative file path for lookup.
+/// </summary>
+public record GuidDatabase {
+    public required Dictionary<UnityGuid, AssetFile> Assets { get; set; }
+    public required Dictionary<string, UnityGuid> FilePathToGuid { get; set; }
+    public required Dictionary<UnityGuid, HashSet<string>> AssociatedFilePaths { get; set; }
+    
+    public static GuidDatabase Parse(string folderPath) {
+        var db = new GuidDatabase() {
+            Assets = [],
+            FilePathToGuid = [],
+            AssociatedFilePaths = [],
+        };
+        
+        var files = GetFiles(folderPath);
+        foreach (var file in files) {
+            var extension = Path.GetExtension(file);
+            if (extension == null) continue;
+
+            var clampedFile = Utility.ClampPathFolders(file, 4);
+            Console.WriteLine($"Checking guids for {clampedFile}");
+            
+            switch (extension) {
+                case ".meta": {
+                    // parse meta file
+                    var assetFile = file[..^".meta".Length];
+                    
+                    if (!db.FilePathToGuid.ContainsKey(assetFile)) {
+                        var metaFile = UnityAssetTypes.ParseMetaFile(file);
+                        if (metaFile == null) continue;
+                        
+                        db.FilePathToGuid.TryAdd(assetFile, metaFile.Guid);
+                        db.AddAssociatedGuid(metaFile.Guid, assetFile);
+                        db.AddAssociatedGuid(metaFile.Guid, file);
+                        
+                        Console.WriteLine($"{metaFile.Guid}::meta:\n - {assetFile}\n - {file}");
+                    }
+                }
+                break;
+                default: {
+                    // parse meta file
+                    var metaFilePath = file + ".meta";
+                    var metaFile = UnityAssetTypes.ParseMetaFile(metaFilePath);
+                    
+                    // needs a meta file for a guid
+                    if (metaFile == null) continue;
+                
+                    var assetFile = UnityAssetTypes.ParseAssetFile(file);
+                    if (assetFile == null) continue;
+                    
+                    // attach to asset file path + guid
+                    db.Assets.TryAdd(metaFile.Guid, assetFile);
+                    db.FilePathToGuid.TryAdd(assetFile.FilePath, metaFile.Guid);
+                    db.AddAssociatedGuid(metaFile.Guid, assetFile.FilePath);
+                    db.AddAssociatedGuid(metaFile.Guid, metaFilePath);
+                    
+                    Console.WriteLine($"{metaFile.Guid}::asset:\n - {assetFile}\n - {assetFile.FilePath}\n - {metaFilePath}");
+                    
+                    foreach (var obj in assetFile.Objects) {
+                        foreach (var reference in obj.AssetReferences) {
+                            db.AddAssociatedGuid(reference.Guid, assetFile.FilePath);
+                            Console.WriteLine($" - {reference}");
+                        }
+                    }
+                }
+                break;
+            }
+        }
+        
+        return db;
+    }
+    
+    public void AddAssociatedGuid(UnityGuid guid, string filePath) {
+        if (!AssociatedFilePaths.TryGetValue(guid, out var associated)) {
+            AssociatedFilePaths.Add(guid, [filePath]);
+        } else {
+            associated.Add(filePath);
+        }
+    }
+    
+    private static IEnumerable<string> GetFiles(string folderPath) {
+        return Directory.EnumerateFiles(folderPath, "*.*", SearchOption.AllDirectories)
+            // find meta and asset files
+            .Where(x => {
+                if (!Path.HasExtension(x)) {
+                    return false;
+                }
+                
+                var end = Path.GetExtension(x).ToLower();
+                // return end == ".meta" || end == ".asset";
+                return end != ".dll" && end != ".new";
+            });
+    }
+    
+    private static IEnumerable<string> GetBuiltInPackages(UnityPath unityPath) {
+        // now scrub the built in packages list
+        var builtInPath = unityPath.GetBuiltInPackagesPath();
+        var folders     = Directory.GetDirectories(builtInPath, "*", SearchOption.TopDirectoryOnly);
+        foreach (var folder in folders) {
+            foreach (var file in GetFiles(folder)) {
+                yield return file;
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Go through each file mapping and write its guid back to disk.
+    /// </summary>
+    public static void ReplaceGuids(IEnumerable<GuidDatabaseMerge> merge, GuidDatabase[] databases) {
+        File.Delete("replace_guids.log");
+        using var writer = new StreamWriter("replace_guids.log");
+        
+        // need to:
+        // 1. Get all guid associations
+        // 2. Replace the guid in each assocated file
+        // 3. Write back to disk
+        //
+        // probably write to a readonly file so the source can stay the same (?)
+        
+        // asset -> asset
+        //      1. replace meta file guid
+        //      2. replace old guid in all association with new guid
+        
+        // meta -> meta
+        //      1. replace meta file guid
+        //      2. replace old guid in all association with new guid
+        
+        // collect all guid changes per file to do one final replacement sweep
+        var files  = new Dictionary<string, HashSet<GuidDatabaseMerge>>(256);
+        var mainDb = databases[0];
+        foreach (var m in merge) {
+            if (!mainDb.AssociatedFilePaths.TryGetValue(m.GuidFrom, out var filePaths)) {
+                Console.WriteLine($"[not_found] {m.GuidFrom} with {m.GuidTo}");
+                writer.WriteLine($"[not_found] {m.GuidFrom} with {m.GuidTo}");
+                continue;
+            }
+            
+            // Console.WriteLine($"Replacing {m.GuidFrom} with {m.GuidTo}");
+            foreach (var filePath in filePaths) {
+                // Console.WriteLine($" - {filePath}");
+                if (!files.TryGetValue(filePath, out var list)) {
+                    files.Add(filePath, []);
+                    list = files[filePath];
+                }
+                
+                writer.WriteLine($"[added] {m} for {Utility.ClampPathFolders(filePath, 4)}");
+                list.Add(m);
+            }
+        }
+        
+        foreach (var (file, list) in files) {
+            var clamped = Utility.ClampPathFolders(file, 5);
+            Console.WriteLine($"[file] {clamped}:");
+            writer.WriteLine($"[file] {clamped}:");
+            
+            var extension = Path.GetExtension(file);
+            switch (extension) {
+                case ".meta": {
+                    // meta file
+                    ReplaceGuidInFile(file, list, writer);
+                }
+                break;
+                
+                default: {
+                    // any other file
+                    if (!mainDb.FilePathToGuid.TryGetValue(file, out var guid)) {
+                        Console.WriteLine($" - no file");
+                        writer.WriteLine($" - no file");
+                        continue;
+                    }
+                    
+                    var asset = databases.Where(x => x.Assets.ContainsKey(guid))
+                        .Select(x => x.Assets[guid])
+                        .FirstOrDefault();
+                        
+                    if (asset == null) {
+                        Console.WriteLine($" - no asset for {guid}");
+                        writer.WriteLine($" - no asset for {guid}");
+                        continue;
+                    }
+                    
+                    var first = asset.Objects.FirstOrDefault();
+                    if (first == null) continue;
+                    
+                    switch (first.ClassId) {
+                        case UnityClassId.MonoScript:
+                        case UnityClassId.AudioClip:
+                        case UnityClassId.MovieTexture:
+                        case UnityClassId.TextAsset:
+                        case UnityClassId.Texture2D:
+                        case UnityClassId.Texture2DArray:
+                        case UnityClassId.Texture3D:
+                        
+                        Console.WriteLine($" - cannot handle \"{first.ClassId}\"");
+                        writer.WriteLine($" - cannot handle \"{first.ClassId}\"");
+                        
+                        continue;
+                    }
+                    
+                    ReplaceGuidInFile(file, list, writer);
+                }
+                break;
+            }
+        }
+    }
+    
+    private static void ReplaceGuidInFile(string filePath, IEnumerable<GuidDatabaseMerge> guids, StreamWriter writer) {
+        File.Delete($"{filePath}.new");
+        
+        var contents = File.ReadAllText(filePath);
+        // todo: do this line by line instead!
+        foreach (var pair in guids) {
+            Console.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
+            writer.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
+            contents = contents.Replace(pair.GuidFrom.Value, pair.GuidTo.Value);
+        }
+        
+        File.WriteAllText($"{filePath}.new", contents);
+    }
+    
+    public void WriteToDisk(string name) {
+        File.Delete(name);
+
+        using var writer = new StreamWriter(name);
+        
+        writer.WriteLine("Assets:");
+        writer.WriteLine("---------------");
+        foreach (var (guid, asset) in Assets) {
+            var filePath = Utility.ClampPathFolders(asset.FilePath, 4);
+            writer.WriteLine($"[{guid}] {filePath}");
+            
+            foreach (var obj in asset.Objects) {
+                writer.WriteLine($" - [{obj}]");
+                
+                foreach (var assetRef in obj.AssetReferences) {
+                    writer.WriteLine($"   - [asset_ref] {assetRef}");
+                }
+                
+                foreach (var nested in obj.NestedReferences) {
+                    writer.WriteLine($"   - [nested   ] {nested}");
+                }
+            }
+        }
+        
+        writer.WriteLine();
+        writer.WriteLine();
+        writer.WriteLine();
+        writer.WriteLine();
+        writer.WriteLine("Associations:");
+        writer.WriteLine("---------------");
+        foreach (var (guid, paths) in AssociatedFilePaths) {
+            var isAnAsset = Assets.ContainsKey(guid);
+            if (isAnAsset) {
+                writer.WriteLine($"[asset] {guid}");
+            } else {
+                writer.WriteLine($"[other] {guid}");
+            }
+            foreach (var path in paths) {
+                var smallPath = Utility.ClampPathFolders(path, 4);
+                writer.WriteLine($" - {smallPath}");
+            }
+        }
+    }
+}
+
+public record GuidDatabaseMerge(UnityGuid GuidFrom, UnityGuid GuidTo);

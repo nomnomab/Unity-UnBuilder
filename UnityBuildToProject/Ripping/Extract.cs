@@ -7,7 +7,7 @@ using Spectre.Console;
 namespace Nomnom;
 
 public static class Extract {
-    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(AppSettings settings, BuildMetadata buildMetadata) {
+    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(AppSettings settings, GameSettings gameSettings, BuildMetadata buildMetadata, bool process) {
         var config = new LibraryConfiguration();
         config.LoadFromDefaultPath();
         
@@ -30,24 +30,44 @@ public static class Extract {
             config.ProcessingSettings.BundledAssetsExportMode    = settings.ExtractSettings.BundledAssetsExportMode;
         }
         
+        // if (gameSettings.ExtractSettings != null) {
+        //     config.ImportSettings.ScriptContentLevel             = gameSettings.ExtractSettings.ScriptContentLevel;
+        //     config.ImportSettings.StreamingAssetsMode            = gameSettings.ExtractSettings.StreamingAssetsMode;
+            
+        //     config.ExportSettings.AudioExportFormat              = gameSettings.ExtractSettings.AudioExportFormat;
+        //     config.ExportSettings.TextExportMode                 = gameSettings.ExtractSettings.TextExportMode;
+        //     config.ExportSettings.SpriteExportMode               = gameSettings.ExtractSettings.SpriteExportMode;
+        //     config.ExportSettings.ShaderExportMode               = gameSettings.ExtractSettings.ShaderExportMode;
+        //     config.ExportSettings.ScriptLanguageVersion          = gameSettings.ExtractSettings.ScriptLanguageVersion;
+        //     config.ExportSettings.ScriptExportMode               = gameSettings.ExtractSettings.ScriptExportMode;
+        //     config.ExportSettings.LightmapTextureExportFormat    = gameSettings.ExtractSettings.LightmapTextureExportFormat;
+        //     config.ExportSettings.ImageExportFormat              = gameSettings.ExtractSettings.ImageExportFormat;
+            
+        //     config.ProcessingSettings.EnablePrefabOutlining      = gameSettings.ExtractSettings.EnablePrefabOutlining;
+        //     config.ProcessingSettings.EnableStaticMeshSeparation = gameSettings.ExtractSettings.EnableStaticMeshSeparation;
+        //     config.ProcessingSettings.EnableAssetDeduplication   = gameSettings.ExtractSettings.EnableAssetDeduplication;
+        //     config.ProcessingSettings.BundledAssetsExportMode    = gameSettings.ExtractSettings.BundledAssetsExportMode;
+        // }
+        
         var exportHandler = new ExportHandler(config);
         var inputPath     = buildMetadata.Path.exePath;
-        var gameData      = exportHandler.LoadAndProcess([
+        var gameData      = process ? exportHandler.LoadAndProcess([
+            inputPath
+        ]) : exportHandler.Load([
             inputPath
         ]);
         
         return (config, gameData, exportHandler);
     }
     
-    public static async Task<ExtractData> ExtractAssets(AppSettings settings, BuildMetadata buildMetadata, ExtractPath extractPath) {
+    public static async Task<ExtractData> ExtractAssets(AppSettings settings, GameSettings gameSettings, BuildMetadata buildMetadata, ExtractPath extractPath) {
         AnsiConsole.MarkupLine("[underline]Extracting assets...[/]");
         
         // log with the specific one below
         Logger.Clear();
         Logger.Add(new ExtractLogger());
         
-        var (config, gameData, exportHandler) = ExtractGameData(settings, buildMetadata);
-        
+        var (config, gameData, exportHandler) = ExtractGameData(settings, gameSettings, buildMetadata, true);
         
         PrintLibraryConfiguration(config, false);
         

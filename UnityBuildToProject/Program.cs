@@ -22,14 +22,25 @@ class Program {
         }
     }
     
+    public static string LogsFolder {
+        get {
+            var path = Path.Combine(OutputFolder, "logs");
+            Directory.CreateDirectory(path);
+            return path;
+        }
+    }
+    
     static async Task Main(string[] args) {
         try {
+            LogFile.Create();
+            LogFile.Header("Starting up");
+            
             LoadDllsFromLib();
         
             // load settings
             var settings = AppSettings.Load();
             if (settings == null) {
-                var panel = new Panel(@$"Looks like your [underline]first time[/] running this tool!
+                var panel = new Panel(@$"It looks like this is your [underline]first time[/] running this tool!
     A settings.toml was created for you next to the .exe, go ahead and modify it before running the tool again. 🙂
 
     {AppSettings.SavePath}");
@@ -38,10 +49,13 @@ class Program {
             }
             
             AppSettings.Validate(settings);
+            AnsiConsole.WriteLine($"settings:\n{settings}");
             
             await AsyncProgram.Run(settings, args);
         } catch(Exception ex) {
             AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
+        } finally {
+            LogFile.Close();
         }
     }
     
@@ -51,7 +65,7 @@ class Program {
             "lib"
         );
         
-        AnsiConsole.MarkupLine("[underline]Loading dlls from /lib...[/]");
+        AnsiConsole.WriteLine("Loading dlls from /lib...");
         foreach (var dll in Directory.GetFiles(libPath, "*.dll", SearchOption.TopDirectoryOnly)) {
             if (dll == null) continue;
             
@@ -62,7 +76,7 @@ class Program {
             
             try {
                 var assembly = Assembly.LoadFrom(dll);
-                AnsiConsole.MarkupLine($"[italic]Loaded {assembly.GetName().Name}[/]");
+                AnsiConsole.WriteLine($"Loaded {assembly.GetName().Name}");
             } catch { }
         }
     }

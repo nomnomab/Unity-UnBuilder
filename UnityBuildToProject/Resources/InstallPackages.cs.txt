@@ -10,19 +10,25 @@ using UnityEngine;
 namespace Nomnom {
     public static class InstallPackages {
         // this gets filled via the tool
-        private static int _remainingCount = #_PACKAGE_COUNT;
-        private static Stack<string> _remaining = new Stack<string>(new string[] {
+        private static int _toAddCount = #_PACKAGE_INSTALL_COUNT;
+        private static Stack<string> _toAdd = new Stack<string>(new string[] {
 #_PACKAGES_TO_INSTALL_
         });
         
-        static AddRequest Request;
+        private static int _toRemoveCount = #_PACKAGE_REMOVE_COUNT;
+        private static Stack<string> _toRemove = new Stack<string>(new string[] {
+#_PACKAGES_TO_REMOVE_
+        });
+        
+        static AddRequest    AddRequest;
+        static RemoveRequest RemoveRequest;
         
         static void UpdateSettings() {
             var playerSettings = Resources.FindObjectsOfTypeAll<PlayerSettings>().First();
             var playerSettingsObject = new SerializedObject(playerSettings);
             playerSettingsObject.Update();
             
-            if (_remaining.Any(x => x.StartsWith("com.unity.inputsystem"))) {
+            if (_toAdd.Any(x => x.StartsWith("com.unity.inputsystem"))) {
                 Debug.Log("Has new input system");
                 
                 var buildTargetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
@@ -44,24 +50,44 @@ namespace Nomnom {
         public static void OnLoad() {
             UpdateSettings();
             
-            Debug.Log(_remainingCount + " packages to install!");
-            while (_remaining.Count > 0) {
-                var name = _remaining.Pop();
+            Debug.Log(_toAddCount + " packages to install!");
+            while (_toAdd.Count > 0) {
+                var name = _toAdd.Pop();
                 
                 Debug.Log("Installing package: " + name);
-                Request  = Client.Add(name);
+                AddRequest = Client.Add(name);
                 
-                while (!Request.IsCompleted) { }
+                while (!AddRequest.IsCompleted) { }
                 
-                Debug.Log("Status: " + Request.Status);
+                Debug.Log("Status: " + AddRequest.Status);
                 
-                if (Request.Status == StatusCode.Success) {
+                if (AddRequest.Status == StatusCode.Success) {
                     // installed package
-                } else if (Request.Status >= StatusCode.Failure) {
-                    Debug.LogWarning(Request.Error.message);
+                } else if (AddRequest.Status >= StatusCode.Failure) {
+                    Debug.LogWarning(AddRequest.Error.message);
                 }
                 
-                Request = null;
+                AddRequest = null;
+            }
+            
+            Debug.Log(_toRemoveCount + " packages to remove!");
+            while (_toRemove.Count > 0) {
+                var name = _toRemove.Pop();
+                
+                Debug.Log("Removing package: " + name);
+                RemoveRequest = Client.Remove(name);
+                
+                while (!RemoveRequest.IsCompleted) { }
+                
+                Debug.Log("Status: " + RemoveRequest.Status);
+                
+                if (RemoveRequest.Status == StatusCode.Success) {
+                    // removed package
+                } else if (RemoveRequest.Status >= StatusCode.Failure) {
+                    Debug.LogWarning(RemoveRequest.Error.message);
+                }
+                
+                RemoveRequest = null;
             }
             
             Debug.Log($"Done installing packages!");
@@ -69,24 +95,24 @@ namespace Nomnom {
             EditorApplication.Exit(0);
         }
         
-        [InitializeOnLoadMethod]
+        /*[InitializeOnLoadMethod]
         public static void RunOnLoad() {
             return;
             UpdateSettings();
             
-            var name = _remaining.Pop();
-            var t = (_remainingCount - _remaining.Count) / (float)_remainingCount;
+            var name = _toAdd.Pop();
+            var t = (_toAddCount - _toAdd.Count) / (float)_toAddCount;
             EditorUtility.DisplayProgressBar("Installing packages", "Installing " + name, t);
             
-            Request  = Client.Add(name);
+            AddRequest  = Client.Add(name);
             Debug.Log("Installing package: " + name);
             
             EditorApplication.update += Progress;
         }
         
         static void Progress() {
-            if (Request == null) {
-                if (_remaining.Count == 0) {
+            if (AddRequest == null) {
+                if (_toAdd.Count == 0) {
                     Debug.Log($"Done installing packages!");
                     EditorUtility.ClearProgressBar();
                     
@@ -96,26 +122,26 @@ namespace Nomnom {
                     return;
                 }
                 
-                var name = _remaining.Pop();
+                var name = _toAdd.Pop();
                 
-                var t = (_remainingCount - _remaining.Count) / (float)_remainingCount;
+                var t = (_toAddCount - _toAdd.Count) / (float)_toAddCount;
                 EditorUtility.DisplayProgressBar("Installing packages", "Installing " + name, t);
                 
-                Request  = Client.Add(name);
+                AddRequest  = Client.Add(name);
                 Debug.Log("Installing package: " + name);
                 
                 return;
             }
             
-            if (Request.IsCompleted) {
-                if (Request.Status == StatusCode.Success) {
+            if (AddRequest.IsCompleted) {
+                if (AddRequest.Status == StatusCode.Success) {
                     // installed package
-                } else if (Request.Status >= StatusCode.Failure) {
-                    Debug.LogWarning(Request.Error.message);
+                } else if (AddRequest.Status >= StatusCode.Failure) {
+                    Debug.LogWarning(AddRequest.Error.message);
                 }
                 
-                Request = null;
+                AddRequest = null;
             }
-        }
+        }*/
     }
 }

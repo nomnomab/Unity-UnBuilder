@@ -57,7 +57,23 @@ You can install it from below:
     /// </summary>
     public string GetExePath() {
         // todo: support other platforms
-        return Path.Combine(folderPath, "Editor", "Unity.exe");
+        return Path.Combine(GetEditorPath(), "Unity.exe");
+    }
+    
+    public string GetEditorPath() {
+        return Path.Combine(folderPath, "Editor");
+    }
+    
+    public string GetResourcesPath() {
+        return Path.Combine(GetEditorPath(), "Data", "Resources");
+    }
+    
+    public string GetPackageManagerPath() {
+        return Path.Combine(GetResourcesPath(), "PackageManager");
+    }
+    
+    public string GetBuiltInPackagesPath() {
+        return Path.Combine(GetPackageManagerPath(), "BuiltInPackages");
     }
     
     public static string GetDownloadUrl(string version) {

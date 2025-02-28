@@ -46,7 +46,7 @@ On Windows this is typically: ""C:/Program Files/Unity/Hub/Editor"".")]
         }
     }
     
-    private static readonly AppSettings Default = new() {
+    public static readonly AppSettings Default = new() {
         UnityHubFolder      = new CrossPlatformString(
             windows: "C:/Program Files/Unity Hub", 
             unix   : "~/Applications/Unity\\ Hub.AppImage", 

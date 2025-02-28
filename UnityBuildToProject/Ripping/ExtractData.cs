@@ -3,6 +3,7 @@ using AssetRipper.Export.UnityProjects.Configuration;
 using AssetRipper.Import.Configuration;
 using AssetRipper.Processing;
 using AssetRipper.Processing.Configuration;
+using Spectre.Console;
 using Tomlet.Attributes;
 
 namespace Nomnom;
@@ -11,8 +12,104 @@ public record ExtractData {
     public required GameData GameData;
     public required LibraryConfiguration Config;
     
-    public string GetTempProjectPath() {
+    public string GetProjectPath() {
         return Path.Combine(Config.ProjectRootPath, "..", "TempProject");
+    }
+    
+    public IEnumerable<string> GetSharedDlls(string secondProject) {
+        var exportProject = Path.Combine(Config.AuxiliaryFilesPath, "..");
+        return GetSharedDlls(exportProject, secondProject);
+    }
+    
+    public static IEnumerable<string> GetSharedDlls(string exportProject, string secondProject) {
+        var firstPath  = Path.Combine(exportProject, "AuxiliaryFiles", "GameAssemblies");
+        var secondPath = Path.Combine(secondProject, "Library", "ScriptAssemblies");
+        
+        var firstDlls  = Directory.GetFiles(firstPath, "*.dll")
+            .Select(x => x[(firstPath.Length + 1)..]);
+        var secondDlls = Directory.GetFiles(secondPath, "*.dll")
+            .Select(x => x[(secondPath.Length + 1)..]);
+        
+        return firstDlls.Union(secondDlls);
+    }
+    
+    public async Task CopyAssetsToProject(string secondProject, bool testFoldersOnly) {
+        var firstPath  = Config.AssetsPath;
+        var secondPath = Path.Combine(secondProject, "Assets");
+        
+        AnsiConsole.WriteLine($"Copying project folders to \"{secondProject}\"");
+        
+        // copy over everything
+        // filter out while debugging
+        if (testFoldersOnly) {
+            var folders = new string[] {
+                "AnimationClip",
+                "Avatar",
+                "Cubemap",
+                "Scripts",
+                "MonoBehaviour",
+                "Material",
+                "Mesh",
+                "Texture2D",
+                "Sprite",
+                "Shader",
+                "Scenes",
+                "Resources"
+            };
+            
+            foreach (var folder in folders) {
+                var folderPath = Path.Combine(firstPath, folder);
+                if (!Directory.Exists(folderPath)) {
+                    continue;
+                }
+                
+                await Utility.CopyAssets(
+                    Path.Combine(firstPath, folder), 
+                    Path.Combine(secondPath, folder)
+                );
+                await Task.Delay(50);
+            }
+        } else {
+            await Utility.CopyAssets(firstPath, secondPath);
+        }
+            
+        AnsiConsole.MarkupLine("[green]Finished[/] copying folders to the temp project!");
+    }
+    
+    public static void RemoveExistingPackageFoldersFromProjectScripts(string projectPath) {
+        AnsiConsole.MarkupLine($"[red]Deleting[/] existing package folders from \"{projectPath}\"");
+        
+        AnsiConsole.Status()
+            .Spinner(Spinner.Known.Aesthetic)
+            .Start("...", ctx => {
+                var scriptsFolder = Path.Combine(projectPath, "Assets", "Scripts");
+                var folders       = Directory.GetDirectories(scriptsFolder);
+                
+                foreach (var dir in folders) {
+                    var name = Path.GetFileName(dir);
+                    ctx.Status($"Checking Scripts/{name}...");
+                    
+                    if (PackageAssociations.FindAssociationFromDll(name) != null) {
+                        AnsiConsole.MarkupLine($"[red]Deleting[/] Scripts/{name}");
+                        Directory.Delete(dir, true);
+                    } else {
+                        AnsiConsole.WriteLine($"Keeping Scripts/{name}");
+                    }
+                }
+            });
+        
+        AnsiConsole.MarkupLine("[green]Done[/] checking folders");
+    }
+    
+    public static void RemoveEditorFolderFromProject(string projectPath) {
+        AnsiConsole.MarkupLine($"[red]Deleting[/] editor folder from \"{projectPath}\"");
+        
+        var editorFolderPath = Path.Combine(projectPath, "Assets", "Editor");
+        if (Directory.Exists(editorFolderPath)) {
+            Directory.Delete(editorFolderPath, true);
+        }
+        
+        AnsiConsole.MarkupLine("[green]Removed[/] editor folder");
     }
 }
 
@@ -131,7 +228,8 @@ DirectExport      = Bundled assets are exported without grouping.
                 SpriteExportMode            = export.SpriteExportMode,
                 ShaderExportMode            = export.ShaderExportMode,
                 ScriptLanguageVersion       = export.ScriptLanguageVersion,
-                ScriptExportMode            = export.ScriptExportMode,
+                // ScriptExportMode            = export.ScriptExportMode,
+                ScriptExportMode            = ScriptExportMode.Decompiled,
                 LightmapTextureExportFormat = export.LightmapTextureExportFormat,
                 ImageExportFormat           = export.ImageExportFormat,
                 

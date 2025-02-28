@@ -9,6 +9,10 @@ public static class UnityCLI {
         await CreateProjectWithArgs(message, unityPath, projectPath, routeStd, []);
     }
     
+    public static async Task CreateProject(string message, UnityPath unityPath, bool routeStd, string projectPath, params string[] args) {
+        await CreateProjectWithArgs(message, unityPath, projectPath, routeStd, args);
+    }
+    
     public static async Task CreateProjectWithArgs(string message, UnityPath unityPath, string projectPath, bool routeStd, params string[] args) {
         if (!Directory.Exists(projectPath)) {
             throw new DirectoryNotFoundException(projectPath);
@@ -27,6 +31,10 @@ public static class UnityCLI {
     
     public static async Task OpenProject(string message, UnityPath unityPath, bool routeStd, string projectPath) {
         await OpenProjectWithArgs(message, unityPath, projectPath, routeStd, []);
+    }
+    
+    public static async Task OpenProject(string message, UnityPath unityPath, bool routeStd, string projectPath, params string[] args) {
+        await OpenProjectWithArgs(message, unityPath, projectPath, routeStd, args);
     }
     
     public static async Task OpenProjectWithArgs(string message, UnityPath unityPath, string projectPath, bool routeStd, params string[] args) {
@@ -55,7 +63,10 @@ public static class UnityCLI {
             var argList = string.Join(" ", args);
             finalArgs += argList;
         }
-        AnsiConsole.WriteLine(finalArgs);
+        
+        AnsiConsole.WriteLine();
+        AnsiConsole.WriteLine($"Running process with arguments:\n{finalArgs}");
+        AnsiConsole.WriteLine();
         
         var process = new Process() {
             StartInfo = new(exePath) {
@@ -72,10 +83,14 @@ public static class UnityCLI {
             process.OutputDataReceived += (a, b) => {
                 var data = b.Data;
                 if (data != null) {
-                    if (data.StartsWith(PREFIX)) {
-                        AnsiConsole.MarkupLine(data[PREFIX.Length..]);
-                    } else {
-                        AnsiConsole.MarkupLineInterpolated($"[grey]Info[/]: {data}");
+                    try {
+                        if (data.StartsWith(PREFIX)) {
+                            AnsiConsole.MarkupLine(data[PREFIX.Length..]);
+                        } else {
+                            AnsiConsole.MarkupLineInterpolated($"[grey]Info[/]: {data}");
+                        }
+                    } catch {
+                        AnsiConsole.WriteLine(data);
                     }
                 }
             };
@@ -85,7 +100,11 @@ public static class UnityCLI {
                 if (data != null) {
                     AnsiConsole.Markup("[red]ERROR[/]: ");
                     if (data.StartsWith(PREFIX)) {
-                        AnsiConsole.MarkupLine(data[PREFIX.Length..]);
+                        try {
+                            AnsiConsole.MarkupLine(data[PREFIX.Length..]);
+                        } catch {
+                            AnsiConsole.WriteLine(data);
+                        }
                     } else {
                         AnsiConsole.WriteLine(data);
                     }

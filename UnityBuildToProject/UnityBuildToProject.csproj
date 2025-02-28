@@ -12,9 +12,11 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
     <PackageReference Include="Samboy063.Tomlet" Version="6.0.0" />
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
     <PackageReference Include="Spectre.Console.Cli" Version="0.49.1" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="9.0.2" />
   </ItemGroup>
   
   <ItemGroup>
@@ -25,12 +27,14 @@
     <None Update="Resources/RouteStdOutput.cs.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Resources/ExtractUnityVersionPackages.cs.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Resources/InstallPackages.cs.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Resources/RecompileUnity.cs.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   
   <PropertyGroup>
     <PreBuildEvent>
       rmdir /s /q "$(TargetDir)lib"
-      <!-- rmdir /s /q "$(TargetDir)output" -->
+      rmdir /s /q "$(TargetDir)output"
+      rmdir /s /q "$(TargetDir)logs"
       exit 0
     </PreBuildEvent>
   </PropertyGroup>
@@ -39,7 +43,7 @@
     <PostBuildEvent>
       if not exist "$(TargetDir)lib" mkdir "$(TargetDir)lib"
       cd /D "$(TargetDir)"
-      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll Tomlet.dll settings.* Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources output /E /IS /MOVE /NJH /NJS /NP
+      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll Tomlet.dll Microsoft.*.dll settings*.* Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources output /E /IS /MOVE /NJH /NJS /NP
       exit 0
     </PostBuildEvent>
   </PropertyGroup>

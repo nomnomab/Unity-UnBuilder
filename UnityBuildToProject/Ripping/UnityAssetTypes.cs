@@ -2,46 +2,13 @@ using System.Text.RegularExpressions;
 
 namespace Nomnom;
 
-/// <summary>
-/// Stores all of the needed guids per relative file path for lookup.
-/// </summary>
-public record GuidDatabase {
-    public required Dictionary<UnityGuid, AssetFile> Assets;
-}
-
-/// <summary>
-/// Simply stores a guid.
-/// </summary>
-public record MetaFile {
-    public required UnityGuid Guid;
-}
-
-/// <summary>
-/// Can store many guid references, as well as file id references.
-/// </summary>
-public record AssetFile {
-    public required HashSet<UnityFileId> SubAssets;
-    public required HashSet<UnityAssetReference> Assets;
-    
-    public static AssetFile Default => new() {
-        SubAssets   = [],
-        Assets      = [],
-    };
-}
-
-public record UnityGuid(string Value);
-public record UnityFileId(string Value);
-public record UnityFileType(int Value);
-
-public record UnityAssetReference {
-    public required UnityFileId FileId;
-    public required UnityGuid Guid;
-    public required UnityFileType Type;
-}
-
 // utilities
 public static partial class UnityAssetTypes {
     public static MetaFile? ParseMetaFile(string path) {
+        if (!File.Exists(path)) {
+            return null;
+        }
+        
         // simply look for a guid field
         // guid: 7ee5d3658460dde439b28eddc73c89ef
         
@@ -55,7 +22,8 @@ public static partial class UnityAssetTypes {
             var guid = ParseGuid(line);
             if (guid != null) {
                 return new MetaFile() {
-                    Guid = guid
+                    FilePath = Path.GetFullPath(path),
+                    Guid     = guid
                 };
             }
         }
@@ -64,6 +32,10 @@ public static partial class UnityAssetTypes {
     }
     
     public static AssetFile? ParseAssetFile(string path) {
+        if (!File.Exists(path)) {
+            return null;
+        }
+        
         // assets can store many references to other files
         // and to ids within itself, such as with subassets
         // or scene child objects
@@ -78,32 +50,38 @@ public static partial class UnityAssetTypes {
         // {fileID: 114811119258149997}
         
         var mainAsset = AssetFile.Default;
+        mainAsset.FilePath = Path.GetFullPath(path);
         
         using var reader = new StreamReader(path);
+        
+        UnityObjectDefinition? currentObj = null;
         while (reader.Peek() >= 0) {
             // read lines
             var line = reader.ReadLine();
             if (line == null) continue;
             
-            // parse subasset
-            var subasset = ParseFileIdReference(line);
-            if (subasset != null) {
-                // todo: this is the definition of the asset, probably store it?
+            // parse object
+            var newObj = ParseObjectDefinition(line);
+            if (newObj != null) {
+                currentObj = newObj;
+                mainAsset.Objects.Add(newObj);
                 continue;
             }
             
-            // parse asset ref
-            var assetRef = ParseAssetReference(line);
-            if (assetRef != null) {
-                mainAsset.Assets.Add(assetRef);
-                continue;
-            }
-            
-            // parse subasset ref
-            var subassetRef = ParseFileId(line);
-            if (subassetRef != null) {
-                mainAsset.SubAssets.Add(subassetRef);
-                continue;
+            if (currentObj != null) {
+                // asset ref
+                var assetRef = ParseAssetReference(line);
+                if (assetRef != null) {
+                    currentObj.AssetReferences.Add(assetRef);
+                    continue;
+                }
+                
+                // parse subasset ref
+                var fileRef = ParseFileId(line);
+                if (fileRef != null) {
+                    currentObj.NestedReferences.Add(fileRef);
+                    continue;
+                }
             }
         }
         
@@ -143,15 +121,28 @@ public static partial class UnityAssetTypes {
         return null;
     }
     
-    private static UnityFileId? ParseFileIdReference(string line) {
-        var fileId = FileIdReferencePattern.Match(line);
-        if (fileId != null && fileId.Success) {
-            var value = fileId.Groups["fileId"].Value;
-            if (string.IsNullOrEmpty(value)) {
+    private static UnityObjectDefinition? ParseObjectDefinition(string line) {
+        var match = FileIdReferencePattern.Match(line);
+        if (match != null && match.Success) {
+            var classId = match.Groups["classId"].Value;
+            var fileId  = match.Groups["fileId"].Value;
+            
+            if (string.IsNullOrEmpty(classId) || string.IsNullOrEmpty(fileId)) {
                 return null;
             }
             
-            return new UnityFileId(value);
+            if (!int.TryParse(classId, out var classIdInt)) {
+                return null;
+            }
+            
+            var obj = new UnityObjectDefinition() {
+                ClassId          = (UnityClassId)classIdInt,
+                FileId           = new UnityFileId(fileId),
+                AssetReferences  = [],
+                NestedReferences = [],
+            };
+            
+            return obj;
         }
         
         return null;
@@ -183,7 +174,6 @@ public static partial class UnityAssetTypes {
     }
     
     private readonly static Regex GuidPattern = GetGuidRegex();
-    private readonly static Regex FileIdPattern = GetFileIdRegex();
     private readonly static Regex FileIdReferencePattern = GetFileIdReferenceRegex();
     private readonly static Regex AssetReferencePattern = GetAssetReferenceRegex();
     private readonly static Regex AssetSubReferencePattern = GetAssetSubReferenceRegex();
@@ -191,10 +181,7 @@ public static partial class UnityAssetTypes {
     [GeneratedRegex(@"guid:\s(?<guid>[0-9A-Za-z]+)", RegexOptions.Compiled)]
     private static partial Regex GetGuidRegex();
     
-    [GeneratedRegex(@"fileID:\s(?<fileId>[0-9A-Za-z]+)", RegexOptions.Compiled)]
-    private static partial Regex GetFileIdRegex();
-    
-    [GeneratedRegex(@"--- !u!\w+\s&(?<fileId>[0-9A-Za-z]+)", RegexOptions.Compiled)]
+    [GeneratedRegex(@"--- !u!(?<classId>\w+)\s&(?<fileId>[0-9A-Za-z]+)", RegexOptions.Compiled)]
     private static partial Regex GetFileIdReferenceRegex();
     
     [GeneratedRegex(@"{fileID:\s(?<fileId>[0-9A-Za-z]+),\s*guid:\s(?<guid>[0-9A-Za-z]+),\s*type:\s(?<type>[0-9]+)}", RegexOptions.Compiled)]

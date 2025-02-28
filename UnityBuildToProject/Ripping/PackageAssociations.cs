@@ -16,11 +16,11 @@ public static class PackageAssociations {
             }
             
             // if we have any wildcard endings, handle them here
-            foreach (var name in package.DllNames) {
-                if (name.EndsWith('*') && dllName.StartsWith(name[..^1])) {
-                    return package;
-                }
-            }
+            // foreach (var name in package.DllNames) {
+            //     if (name.EndsWith('*') && dllName.StartsWith(name[..^1])) {
+            //         return package;
+            //     }
+            // }
         }
         
         return null;
@@ -64,6 +64,12 @@ public static class PackageAssociations {
         "UnityEngine.HotReloadModule"
     ];
     
+    public static readonly string[] ExcludeIds = [
+        // "com.unity.test-framework.performance",
+        // "com.unity.test-framework",
+        "com.unity.collab-proxy"
+    ];
+    
     public static readonly PackageInfo[] Packages = [.. new PackageInfo[] {
         new() {
             Id = "com.unity.modules.ui",
@@ -87,13 +93,18 @@ public static class PackageAssociations {
             Id = "com.unity.modules.uielements",
             DllNames = ["UnityEngine.UIElementsModule"]
         },
-        new() {
-            Id = "com.unity.transport",
-            DllNames = ["UnityEngine.UNETModule"]
-        },
+        // new() {
+        //     Id = "com.unity.transport",
+        //     DllNames = ["UnityEngine.UNETModule"]
+        // },
         new() {
             Id = "com.unity.probuilder",
-            DllNames = ["Unity.ProBuilder*"]
+            DllNames = [
+                "Unity.ProBuilder",
+                "Unity.ProBuilder.KdTree",
+                "Unity.ProBuilder.Poly2Tri",
+                "Unity.ProBuilder.Stl",
+            ]
         },
         new() {
             Id = "com.unity.textmeshpro",
@@ -238,6 +249,18 @@ public static class PackageAssociations {
         new() {
             Id = "com.unity.modules.imgui",
             DllNames = ["UnityEngine.IMGUIModule"]
+        },
+        new() {
+            Id = "com.unity.multiplayer-hlapi",
+            DllNames = [
+                "com.unity.multiplayer-hlapi.Editor",
+                "com.unity.multiplayer-hlapi.Runtime",
+                "com.unity.multiplayer-weaver.Editor"
+            ]
+        },
+        new() {
+            Id = "com.unity.postprocessing",
+            DllNames = ["Unity.Postprocessing.Runtime"]
         }
     }
         .OrderBy(x => x.Id)];
@@ -251,7 +274,8 @@ public record PackageTree {
             Nodes = []
         };
         
-        var workingPackages = packages.ToList();
+        var workingPackages = packages.Where(x => !PackageAssociations.ExcludeIds.Contains(x.Id))
+            .ToList();
         
         // find packages that have no dependencies
         var packagesNoDependencies = workingPackages
@@ -264,6 +288,8 @@ public record PackageTree {
         
         // add the root nodes
         foreach (var package in packagesNoDependencies) {
+            AnsiConsole.WriteLine($"{package.x.Id} has no dependencies");
+            
             tree.Nodes.Add(new PackageTreeNode {
                 Info     = package.x,
                 Version  = package.Item2?.m_Version ?? "",
@@ -273,18 +299,24 @@ public record PackageTree {
         
         // now link up the packages that have a dependency to another.
         foreach (var package in workingPackages) {
+            AnsiConsole.WriteLine($"Checking {package.Id}");
+            
             var versionPackage = versionPackages.FindById(package.Id);
             if (versionPackage == null) {
                 AnsiConsole.MarkupLine($"[red]Failed[/] to find version package for \"{package.Id}\"");
                 continue;
             }
             
-            foreach (var dependency in versionPackage.m_Dependencies ?? []) {
+            // go through each dependency of this package and add it if it is missing
+            var dependencies = versionPackage.m_Dependencies ?? [];
+            var foundDependency = false;
+            foreach (var dependency in dependencies) {
                 if (dependency.m_Name == null) continue;
                 
+                // find the dependency
                 var parentNode = tree.Find(dependency.m_Name);
                 if (parentNode == null) {
-                    // no parent found, make a new one
+                    // no dependency found, make a new one
                     var association = PackageAssociations.FindAssociationFromId(dependency.m_Name);
                     if (association != null) {
                         parentNode = new PackageTreeNode {
@@ -305,7 +337,19 @@ public record PackageTree {
                     Version  = versionPackage.m_Version ?? "",
                     Children = []
                 });
+                
+                foundDependency = true;
             }
+            
+            if (!foundDependency) {
+                tree.Nodes.Add(new PackageTreeNode {
+                    Info     = package,
+                    Version  = versionPackage.m_Version ?? "",
+                    Children = []
+                });
+            }
+            
+            AnsiConsole.WriteLine($"Done checking {package.Id}");
         }
         
         // see if any are left over
@@ -350,11 +394,97 @@ public record PackageTree {
         }
     }
     
+    public void Remove(string id) {
+        for (int i = 0; i < Nodes.Count; i++) {
+            var node = Nodes[i];
+            if (node.Info.Id == id) {
+                Nodes.RemoveAt(i);
+                return;
+            }
+            
+            _Find(id, node);
+        }
+        
+        // finds a node that matches the id
+        static void _Find(string id, PackageTreeNode node) {
+            for (int i = 0; i < node.Children.Count; i++) {
+                var child = node.Children[i];
+                if (child.Info.Id == id) {
+                    node.Children.RemoveAt(i);
+                    return;
+                }
+                
+                _Find(id, child);
+            }
+        }
+    }
+    
     public IEnumerable<(string, string)> GetList() {
-        return Nodes.Select(x => (x.Info.Id, x.Version));
+        return Nodes.SelectMany(GetList);
+    }
+    
+    private IEnumerable<(string, string)> GetList(PackageTreeNode node) {
+        yield return (node.Info.Id, node.Version);
+            
+        foreach (var child in node.Children) {
+            foreach (var c in GetList(child)) {
+                yield return c;
+            }
+        }
+    }
+    
+    public IEnumerable<PackageTreeNode> GetNodes() {
+        return GetAllNodes().DistinctBy(x => x.Info.Id);
+    }
+    
+    private IEnumerable<PackageTreeNode> GetAllNodes() {
+        foreach (var node in Nodes) {
+            foreach (var n in getChildrenNodes(node)) {
+                yield return n;
+            }
+        }
+        
+        static IEnumerable<PackageTreeNode> getChildrenNodes(PackageTreeNode node) {
+            yield return node;
+            
+            foreach (var child in node.Children) {
+                yield return child;
+                
+                foreach (var n in getChildrenNodes(child)) {
+                    yield return n;
+                }
+            }
+        }
+    }
+    
+    public void WriteToDisk(string name) {
+        var namePath = Path.Combine(Program.LogsFolder, name);
+        File.Delete(namePath);
+        
+        using var writer = new StreamWriter(namePath);
+        writer.WriteLine("Nodes");
+        writer.WriteLine("-------------");
+        
+        foreach (var node in Nodes) {
+            LogNode(node, 0);
+        }
+        
+        void LogNode(PackageTreeNode node, int ident) {
+            var name   = $"{node.Info.Id} @ {node.Version}";
+            var prefix = new string(' ', ident * 2);
+            writer.WriteLine($"{prefix}{name}");
+            
+            if (node.Children.Count > 0) {
+                foreach (var child in node.Children) {
+                    LogNode(child, ident + 1);
+                }
+            }
+        }
     }
     
     public void WriteToConsole() {
+        AnsiConsole.WriteLine();
+        
         var tree = new Tree("Package Tree");
         foreach (var node in Nodes) {
             LogNode(node, tree);
