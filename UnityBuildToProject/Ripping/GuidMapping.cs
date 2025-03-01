@@ -4,16 +4,19 @@ namespace Nomnom;
 
 public static class GuidMapping {
     public static async Task<GuidDatabase> ExtractGuids(string projectPath) {
-        GuidDatabase? db = null;
-        
-        await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Aesthetic)
-            .StartAsync("Extracting guids from project", async ctx => {
-                db = GuidDatabase.Parse(projectPath);
-                AnsiConsole.MarkupLine($"Extracted guids from project.");
+        // await AnsiConsole.Status()
+        //     .Spinner(Spinner.Known.Aesthetic)
+        //     .StartAsync("Extracting guids from project", async ctx => {
+        //         db = GuidDatabase.Parse(projectPath);
+        //         AnsiConsole.MarkupLine($"Extracted guids from project.");
                 
-                await Task.Delay(1000);
-            });
+        //         await Task.Delay(1000);
+        //     });
+        
+        Console.WriteLine("Extracting guids from project");
+        var db = GuidDatabase.Parse(projectPath);
+        Console.WriteLine("Extracted guids from project.");
+        await Task.Delay(1000);
         
         if (db == null) {
             throw new Exception("Failed to parse guid database");

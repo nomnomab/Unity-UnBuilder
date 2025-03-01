@@ -116,7 +116,8 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         // copy over the project assets once processed
         await extractData.CopyAssetsToProject(extractData.GetProjectPath(), testFoldersOnly: false);
         ExtractData.RemoveEditorFolderFromProject(extractData.GetProjectPath());
-        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(extractData.GetProjectPath());
+        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(gameSettings, extractData.GetProjectPath());
+        ExtractData.RemoveLibraryFolders(extractData.Config.ProjectRootPath);
         
         packageTree.WriteToConsole();
         

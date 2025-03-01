@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -7,14 +8,24 @@ using Spectre.Console;
 namespace Nomnom;
 
 public static class RoslynUtility {
+    private static readonly CSharpParseOptions ParseOptions = CSharpParseOptions.Default
+        .WithKind(SourceCodeKind.Regular)
+        .WithDocumentationMode(DocumentationMode.None)
+        .WithPreprocessorSymbols(null)
+        .WithLanguageVersion(LanguageVersion.CSharp9);
+    
     public static async Task<RoslynDatabase> ExtractTypes(string projectPath) {
         RoslynDatabase? db = null;
         
         await AnsiConsole.Status()
             .Spinner(Spinner.Known.Aesthetic)
-            .StartAsync("Extracting types", async ctx => {
-                ctx.Status("Extracting types from project");
-                db = RoslynDatabase.Parse(projectPath);
+            .StartAsync("Extracting types from project", async ctx => {
+                try {
+                    db = await RoslynDatabase.Parse(projectPath);
+                } catch {
+                    Console.WriteLine("Encountered an error");
+                    throw;
+                }
                 AnsiConsole.MarkupLine($"Extracted types from project.");
                 
                 await Task.Delay(1000);
@@ -27,11 +38,32 @@ public static class RoslynUtility {
         return db;
     }
     
-    public static IEnumerable<string> ParseTypesFromFile(string filePath, List<string> namespacePartsCache) {
-        return ParseTypesFromFileInternal(filePath, namespacePartsCache).Distinct();
+    public static async Task ParseTypesFromFile(string filePath, List<string> namespacePartsCache, List<string> types) {
+        types.Clear();
+        
+        var token = new CancellationTokenSource();
+        var task = Task.Run(() => {
+            var val = ParseTypesFromFileInternal(filePath, namespacePartsCache, token.Token).Distinct();
+            types.AddRange(val);
+        });
+        
+        var stopwatch = Stopwatch.StartNew();
+        while (!task.IsCompletedSuccessfully) {
+            if (stopwatch.ElapsedMilliseconds > 5000) {
+                Console.WriteLine("Task failed!");
+                token.Cancel();
+                break;
+            }
+            
+            if (task.Exception != null) {
+                throw task.Exception;
+            }
+            
+            await Task.Delay(5);
+        }
     }
     
-    private static IEnumerable<string> ParseTypesFromFileInternal(string filePath, List<string> namespacePartsCache) {
+    private static IEnumerable<string> ParseTypesFromFileInternal(string filePath, List<string> namespacePartsCache, CancellationToken token) {
         var extension = Path.GetExtension(filePath);
         if (extension != ".cs") {
             yield break;
@@ -39,9 +71,10 @@ public static class RoslynUtility {
         
         using var reader = new StreamReader(filePath);
         var sourceText   = SourceText.From(reader.BaseStream);
-        var tree         = CSharpSyntaxTree.ParseText(sourceText);
+        var tree         = CSharpSyntaxTree.ParseText(sourceText, ParseOptions, path: filePath);
         var root         = tree.GetRoot();
         
+        // Console.WriteLine($"Getting types for {Utility.ClampPathFolders(filePath, 4)}");
         var types        = root.DescendantNodes()
             .OfType<BaseTypeDeclarationSyntax>();
         
@@ -51,6 +84,7 @@ public static class RoslynUtility {
             // only cares about Mono-esque types where it inherits
             // and matches the file name
             if (IsPartialType(type)) {
+                // Console.WriteLine($" - partial");
                 if (type.BaseList == null) continue;
                 if (type.BaseList.Types.Count == 0) continue;
                 

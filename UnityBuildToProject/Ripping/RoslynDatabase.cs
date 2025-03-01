@@ -3,26 +3,37 @@ namespace Nomnom;
 public record RoslynDatabase {
     public required Dictionary<string, string> FullNameToFilePath { get; set; }
     
-    public static RoslynDatabase Parse(string folderPath) {
+    public static async Task<RoslynDatabase> Parse(string folderPath) {
         var db = new RoslynDatabase() {
             FullNameToFilePath = []
         };
         
-        var allScripts          = Directory.GetFiles(folderPath, "*.cs", SearchOption.AllDirectories);
+        var allScripts          = Directory.GetFiles(folderPath, "*.cs", SearchOption.AllDirectories)
+            .Where(x => !Path.GetFileName(x).StartsWith("UnitySourceGeneratedAssemblyMonoScriptTypes"))
+            .Where(x => !x.EndsWith(".gen.cs"));
         var namespacePartsCache = new List<string>(capacity: 128);
+        var types               = new List<string>(capacity: 1024);
         foreach (var script in allScripts) {
-            if (script.EndsWith(".gen.cs")) continue;
+            Console.WriteLine($"Parsing \"{Utility.ClampPathFolders(script, 4)}\"...");
             
-            // AnsiConsole.WriteLine($"Parsing \"{script}\"...");
+            try {
+                await RoslynUtility.ParseTypesFromFile(script, namespacePartsCache, types);
+            } catch {
+                Console.WriteLine(" - Failed to parse");
+                types.Clear();
+                continue;
+            }
             
-            foreach (var type in RoslynUtility.ParseTypesFromFile(script, namespacePartsCache)) {
-                // AnsiConsole.WriteLine($"Found type \"{type}\"");
+            foreach (var type in types) {
+                // Console.WriteLine($"Found type \"{type}\"");
                 
                 if (!db.FullNameToFilePath.TryAdd(type, script)) {
                     var existing = db.FullNameToFilePath[type];
-                    throw new Exception($"\"{type}\" already exists in the database.\nexisting: \"{existing}\"\nattempted: \"{script}\"");
+                    // throw new Exception($"\"{type}\" already exists in the database.\nexisting: \"{existing}\"\nattempted: \"{script}\"");
+                    Console.WriteLine($"\"{type}\" already exists in the database.\nexisting: \"{existing}\"\nattempted: \"{script}\"");
                 }
             }
+            types.Clear();
         }
         
         return db;

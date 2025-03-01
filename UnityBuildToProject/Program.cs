@@ -53,7 +53,11 @@ class Program {
             
             await AsyncProgram.Run(settings, args);
         } catch(Exception ex) {
-            AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
+            try {
+                AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
+            } catch {
+                throw;
+            }
         } finally {
             LogFile.Close();
         }

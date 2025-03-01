@@ -124,9 +124,24 @@ public static class Extract {
                 continue;
             }
             
-            ctx.Status("Export faulted.");
-            AnsiConsole.MarkupLine("[red]Exported faulted![/]");
-            throw new Exception("Export faulted.");
+            if (task.IsFaulted) {
+                ctx.Status("Export faulted.");
+                AnsiConsole.MarkupLine("[red]Exported faulted![/]");
+                
+                if (task.Exception != null) {
+                    throw task.Exception;
+                } else {
+                    throw new Exception("Export faulted.");
+                }
+            }
+            
+            if (task.Exception != null) {
+                ctx.Status("Export failed.");
+                AnsiConsole.MarkupLine("[red]Exported failed![/]");
+                throw task.Exception;
+            }
+            
+            break;
         }
     }
     
@@ -185,6 +200,10 @@ class ExtractLogger : ILogger {
             _ => throw new NotImplementedException(),
         };
         
-        AnsiConsole.MarkupLine($"[gray]{category}[/]: [{color}]{message}[/]");
+        try {
+            AnsiConsole.MarkupLine($"[gray]{category}[/]: [{color}]{message}[/]");
+        } catch {
+            Console.WriteLine($"{category}: {message}");
+        }
     }
 }

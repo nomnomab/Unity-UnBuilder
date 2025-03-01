@@ -40,3 +40,7 @@ The main goal of this project is to make a better version of my prior build->pro
 [ ] Some legacy axis can just not be in the build I guess?
     Having to re-define multiple of them manually.
 [ ] Decompiled shaders have to be manually cleaned up as well, clean up common cases?
+[ ] Making an asmdefref for specific package folders
+    Probably assign in game specific settings
+[ ] Assign LocalizationSettings if available and installed
+    [ ] Fetch localization tables

@@ -7,6 +7,7 @@ namespace Nomnom;
 
 public record GameSettings {
     public required PackageOverrides PackageOverrides { get; set; }
+    public required FileOverrides FileOverrides { get; set; }
     
     public static string GetGameName(string gameName) {
         return gameName.Replace(" ", "_")
@@ -36,6 +37,9 @@ public record GameSettings {
         // ExtractSettings  = null,
         PackageOverrides = new() {
             Packages = []
+        },
+        FileOverrides = new() {
+            ProjectPaths = []
         }
     };
     
@@ -74,3 +78,15 @@ A version of ""no"" will exclude the package if it is included.")]
 }
 
 public record PackageOverride(string Id, string? Version);
+
+public record FileOverrides {
+    [TomlPrecedingComment(@"Add files and folders that will make sure to be included in the final project.
+
+You really only need to do this for things like custom scripts inside of an internal package namespace folder.
+
+Each entry is in the format of:
+{ Path = ""Path/To/Folder"" },")]
+    public required FileOverride[] ProjectPaths = [];
+}
+
+public record FileOverride(string Path);

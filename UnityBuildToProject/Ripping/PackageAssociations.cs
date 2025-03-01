@@ -41,10 +41,16 @@ public static class PackageAssociations {
         });
     }
     
+    public static readonly string[] ExcludePrefixDelete = [
+        "Unity.InternalAPIEngineBridge",
+        "Unity.ResourceManager",
+    ];
+    
     public static readonly string[] ExcludePrefixes = [
         "System",
         // "Mono.",
         "Assembly-CSharp",
+        "Unity.InternalAPIEngineBridge"
     ];
     
     public static readonly string[] ExcludeNames = [
@@ -61,7 +67,8 @@ public static class PackageAssociations {
         "UnityEngine.UnityConnectModule",
         "UnityEngine.UnityTestProtocolModule",
         "UnityEngine.SharedInternalsModule",
-        "UnityEngine.HotReloadModule"
+        "UnityEngine.HotReloadModule",
+        "Unity.ResourceManager",
     ];
     
     public static readonly string[] ExcludeIds = [
@@ -176,7 +183,10 @@ public static class PackageAssociations {
         },
         new() {
             Id = "com.unity.inputsystem",
-            DllNames = ["UnityEngine.InputModule"]
+            DllNames = [
+                "Unity.InputSystem",
+                "Unity.InputSystem.ForUI"
+            ]
         },
         new() {
             Id = "com.unity.progrids",
@@ -261,7 +271,88 @@ public static class PackageAssociations {
         new() {
             Id = "com.unity.postprocessing",
             DllNames = ["Unity.Postprocessing.Runtime"]
-        }
+        },
+        new() {
+            Id = "com.unity.render-pipelines.core",
+            DllNames = [
+                "Unity.RenderPipelines.Core.Runtime",
+                "Unity.RenderPipelines.Core.ShaderLibrary",
+            ]
+        },
+        new() {
+            Id = "com.unity.shadergraph",
+            DllNames = [
+                "Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary"
+                ]
+        },
+        new() {
+            Id = "com.unity.render-pipelines.universal",
+            DllNames = [
+                "Unity.RenderPipelines.Universal.Config.Runtime",
+                "Unity.RenderPipelines.Universal.Runtime",
+                "Unity.RenderPipelines.Universal.Shaders",
+                "Unity.RenderPipeline.Universal.ShaderLibrary"
+            ]
+        },
+        new() {
+            Id = "com.unity.burst",
+            DllNames = [
+                "Unity.Burst",
+                "Unity.Burst.Unsafe"
+            ]
+        },
+        new() {
+            Id = "com.unity.mathematics",
+            DllNames = ["Unity.Mathematics"]
+        },
+        new() {
+            Id = "com.unity.cinemachine",
+            DllNames = ["Cinemachine"]
+        },
+        new() {
+            Id = "com.unity.visualscripting",
+            DllNames = [
+                "Unity.VisualScripting.Core",
+                "Unity.VisualScripting.Flow",
+                "Unity.VisualScripting.State",
+                "Unity.VisualScripting.Antlr3.Runtime"
+            ]
+        },
+        new() {
+            Id = "com.unity.recorder",
+            DllNames = [
+                "Unity.Recorder",
+                "Unity.Recorder.Base"
+            ]
+        },
+        new() {
+            Id = "com.unity.localization",
+            DllNames = ["Unity.Localization"]
+        },
+        new() {
+            Id = "com.unity.nuget.newtonsoft-json",
+            DllNames = ["Newtonsoft.Json"]
+        },
+        new() {
+            Id = "com.unity.addressables",
+            DllNames = ["Unity.Addressables"]
+        },
+        new() {
+            Id = "com.autodesk.fbx",
+            DllNames = ["Autodesk.Fbx"]
+        },
+        new() {
+            Id = "com.unity.formats.fbx",
+            DllNames = ["Unity.Formats.Fbx.Runtime"]
+        },
+        new() {
+            Id = "com.unity.ai.navigation",
+            DllNames = ["Unity.AI.Navigation"]
+        },
+        new() {
+            Id = "com.unity.scriptablebuildpipeline",
+            DllNames = ["Unity.ScriptableBuildPipeline"]
+        },
     }
         .OrderBy(x => x.Id)];
 }

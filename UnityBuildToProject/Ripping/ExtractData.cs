@@ -76,7 +76,7 @@ public record ExtractData {
         AnsiConsole.MarkupLine("[green]Finished[/] copying folders to the temp project!");
     }
     
-    public static void RemoveExistingPackageFoldersFromProjectScripts(string projectPath) {
+    public static void RemoveExistingPackageFoldersFromProjectScripts(GameSettings gameSettings, string projectPath) {
         AnsiConsole.MarkupLine($"[red]Deleting[/] existing package folders from \"{projectPath}\"");
         
         AnsiConsole.Status()
@@ -84,16 +84,49 @@ public record ExtractData {
             .Start("...", ctx => {
                 var scriptsFolder = Path.Combine(projectPath, "Assets", "Scripts");
                 var folders       = Directory.GetDirectories(scriptsFolder);
+                var fileOverrides = gameSettings.FileOverrides;
+                var filesToKeep   = fileOverrides.ProjectPaths.Select(x => x.Path)
+                    .ToHashSet();
                 
                 foreach (var dir in folders) {
                     var name = Path.GetFileName(dir);
-                    ctx.Status($"Checking Scripts/{name}...");
+                    ctx.Status($"Checking {Utility.ClampPathFolders(dir, 4)}...");
                     
-                    if (PackageAssociations.FindAssociationFromDll(name) != null) {
-                        AnsiConsole.MarkupLine($"[red]Deleting[/] Scripts/{name}");
-                        Directory.Delete(dir, true);
-                    } else {
+                    var shouldDelete = PackageAssociations.FindAssociationFromDll(name) != null;
+                    if (!shouldDelete) {
+                        foreach (var excl in PackageAssociations.ExcludePrefixDelete) {
+                            if (name.StartsWith(excl)) {
+                                shouldDelete = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!shouldDelete) {
                         AnsiConsole.WriteLine($"Keeping Scripts/{name}");
+                        continue;
+                    }
+                    
+                    AnsiConsole.MarkupLine($"[red]Deleting[/] Scripts/{name}");
+                    
+                    // make sure we don't exclude a required path
+                    var dirFiles   = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories);
+                    var deletedAll = true;
+                    foreach (var file in dirFiles) {
+                        var localPath = Path.Combine(file[(projectPath.Length + 1)..])
+                            .Replace('\\', '/');
+                        if (filesToKeep.Contains(localPath) || filesToKeep.Any(x => localPath.StartsWith(x))) {
+                            Console.WriteLine($" - keeping {localPath}");
+                            deletedAll = false;
+                            continue;
+                        }
+                        
+                        Console.WriteLine($" - deleted {localPath}");
+                        File.Delete(file);
+                    }
+                    
+                    if (deletedAll) {
+                        Directory.Delete(dir, true);
                     }
                 }
             });
@@ -110,6 +143,14 @@ public record ExtractData {
         }
         
         AnsiConsole.MarkupLine("[green]Removed[/] editor folder");
+    }
+    
+    public static void RemoveLibraryFolders(string projectPath) {
+        var libraryFolder = Path.Combine(projectPath, "Library");
+        if (!Directory.Exists(libraryFolder)) return;
+        
+        AnsiConsole.MarkupLine($"[red]Deleting[/] Library folder from \"{projectPath}\"");
+        Directory.Delete(libraryFolder);
     }
 }
 

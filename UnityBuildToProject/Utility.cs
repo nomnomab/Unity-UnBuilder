@@ -79,7 +79,9 @@ public static class Utility {
                 ctx.Status("Creating Files");
 
                 // copy all the files & replaces any files with the same name
-                var files = Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories);
+                var files = Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories)
+                    .Where(x => !Path.GetFileName(x).StartsWith("UnitySourceGeneratedAssemblyMonoScriptTypes"));
+                
                 foreach (var file in files) {
                     AnsiConsole.MarkupLine($"[grey]Copying[/] \"{ClampPathFolders(file, 4)}\" to \"{ClampPathFolders(targetPath, 4)}\"");
                     
