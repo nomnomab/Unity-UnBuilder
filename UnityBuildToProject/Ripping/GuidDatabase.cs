@@ -38,7 +38,7 @@ public record GuidDatabase {
                         db.AddAssociatedGuid(metaFile.Guid, assetFile);
                         db.AddAssociatedGuid(metaFile.Guid, file);
                         
-                        Console.WriteLine($"{metaFile.Guid}::meta:\n - {assetFile}\n - {file}");
+                        // Console.WriteLine($"{metaFile.Guid}::meta:\n - {assetFile}\n - {file}");
                     }
                 }
                 break;
@@ -59,12 +59,12 @@ public record GuidDatabase {
                     db.AddAssociatedGuid(metaFile.Guid, assetFile.FilePath);
                     db.AddAssociatedGuid(metaFile.Guid, metaFilePath);
                     
-                    Console.WriteLine($"{metaFile.Guid}::asset:\n - {assetFile}\n - {assetFile.FilePath}\n - {metaFilePath}");
+                    // Console.WriteLine($"{metaFile.Guid}::asset:\n - {assetFile}\n - {assetFile.FilePath}\n - {metaFilePath}");
                     
                     foreach (var obj in assetFile.Objects) {
                         foreach (var reference in obj.AssetReferences) {
                             db.AddAssociatedGuid(reference.Guid, assetFile.FilePath);
-                            Console.WriteLine($" - {reference}");
+                            // Console.WriteLine($" - {reference}");
                         }
                     }
                 }
@@ -112,8 +112,9 @@ public record GuidDatabase {
     /// Go through each file mapping and write its guid back to disk.
     /// </summary>
     public static void ReplaceGuids(IEnumerable<GuidDatabaseMerge> merge, GuidDatabase[] databases) {
-        File.Delete("replace_guids.log");
-        using var writer = new StreamWriter("replace_guids.log");
+        var logPath = Path.Combine(Program.LogsFolder, "replace_guids.log");
+        File.Delete(logPath);
+        using var writer = new StreamWriter(logPath);
         
         // need to:
         // 1. Get all guid associations

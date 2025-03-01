@@ -81,7 +81,7 @@ public static class Utility {
                 // copy all the files & replaces any files with the same name
                 var files = Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories);
                 foreach (var file in files) {
-                    AnsiConsole.MarkupLine($"[grey]Copying[/] \"{file}\" to \"{targetPath}\"");
+                    AnsiConsole.MarkupLine($"[grey]Copying[/] \"{ClampPathFolders(file, 4)}\" to \"{ClampPathFolders(targetPath, 4)}\"");
                     
                     var to = file.Replace(sourcePath, targetPath);
                     var folder = Path.GetDirectoryName(to);
@@ -90,6 +90,9 @@ public static class Utility {
                         var realTo = to[..^".new".Length];
                         Directory.CreateDirectory(folder!);
                         File.Copy(file, realTo, true);
+                        
+                        // clean up .new files
+                        File.Delete(file);
                     } else {
                         Directory.CreateDirectory(folder!);
                         File.Copy(file, to, true);

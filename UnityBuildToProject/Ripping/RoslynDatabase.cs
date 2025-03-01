@@ -87,8 +87,9 @@ public record RoslynDatabase {
         }
         
         // debug
-        File.Delete("write_log.log");
-        using (var writer = new StreamWriter("write_log.log")) {
+        var logFile = Path.Combine(Program.LogsFolder, "write_log.log");
+        File.Delete(logFile);
+        using (var writer = new StreamWriter(logFile)) {
             foreach (var merge in toReplace) {
                 // find things that use the original guid
                 writer.WriteLine($"{merge.GuidFrom} to {merge.GuidTo}");

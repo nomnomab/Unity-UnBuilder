@@ -23,7 +23,7 @@ The main goal of this project is to make a better version of my prior build->pro
 [ ] Connect the package files to the output files
     [x] Builds a lookup for the TEMP project of all of its scripts, as the
         original project won't have them attached to the normal packages properly.
-    [ ] Need to first find which guids map from the TEMP project to the SRC project.
+    [x] Need to first find which guids map from the TEMP project to the SRC project.
         Such as scripts from packages mapping to the decompiled versions in SRC/Scripts/*
         These would be used to fix the guids located in the normal assets, like SOs and
         prefabs.
@@ -36,3 +36,7 @@ The main goal of this project is to make a better version of my prior build->pro
     [ ] Override AssetRipper options
     [x] Override package versioning
     [ ] Change package manifest?
+[ ] Animation clips can be duplicated and break if gotten via name in code
+[ ] Some legacy axis can just not be in the build I guess?
+    Having to re-define multiple of them manually.
+[ ] Decompiled shaders have to be manually cleaned up as well, clean up common cases?

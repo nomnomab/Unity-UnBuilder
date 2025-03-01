@@ -59,11 +59,12 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         LogFile.Header("Extracting assets");
         
         var extractPath      = ExtractPath.FromOutputFolder("output");
-        var (_, gameData, _) = Extract.ExtractGameData(settings, gameSettings, buildMeta, false);
+        var (_, gameData, _) = Extract.ExtractGameData(settings.ExtractSettings, null, buildMeta, false);
         
         // fetch the unity install path for later
         var unityInstall     = UnityPath.FromVersion(unityInstalls, gameData.ProjectVersion.ToString());
-        var extractData      = await Extract.ExtractAssets(settings, gameSettings, buildMeta, extractPath);
+        var extractData      = await Extract.ExtractAssets(settings, buildMeta, extractPath);
+        // await Extract.DecompileShaders(buildMeta, extractPath);
         
         profileDuration.Record("Extracting Assets");
         LogFile.Header("Getting packages");
@@ -97,9 +98,9 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         var projectDb    = await GuidMapping.ExtractGuids(extractData.GetProjectPath());
         var builtinDb    = await GuidMapping.ExtractGuids(unityInstall.GetBuiltInPackagesPath());
         
-        extractDb.WriteToDisk("extractDb.log");
-        projectDb.WriteToDisk("projectDb.log");
-        builtinDb.WriteToDisk("builtinDb.log");
+        extractDb.WriteToDisk(Path.Combine(Program.LogsFolder, "extractDb.log"));
+        projectDb.WriteToDisk(Path.Combine(Program.LogsFolder, "projectDb.log"));
+        builtinDb.WriteToDisk(Path.Combine(Program.LogsFolder, "builtinDb.log"));
         
         // process the types between the two projects
         var extractTypes = await RoslynUtility.ExtractTypes(extractData.Config.ProjectRootPath);
@@ -113,7 +114,7 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         
         // todo: process assets
         // copy over the project assets once processed
-        await extractData.CopyAssetsToProject(extractData.GetProjectPath(), testFoldersOnly: true);
+        await extractData.CopyAssetsToProject(extractData.GetProjectPath(), testFoldersOnly: false);
         ExtractData.RemoveEditorFolderFromProject(extractData.GetProjectPath());
         ExtractData.RemoveExistingPackageFoldersFromProjectScripts(extractData.GetProjectPath());
         

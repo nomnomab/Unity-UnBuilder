@@ -240,4 +240,53 @@ DirectExport      = Bundled assets are exported without grouping.
             };
         }
     }
+    
+    public ExtractSettings() { }
+    
+    public static ExtractSettings FromConfig(LibraryConfiguration config) {
+        return new ExtractSettings() {
+            ScriptContentLevel          = config.ImportSettings.ScriptContentLevel,
+            StreamingAssetsMode         = config.ImportSettings.StreamingAssetsMode,
+            IgnoreStreamingAssets       = config.ImportSettings.IgnoreStreamingAssets,
+                    
+            AudioExportFormat           = config.ExportSettings.AudioExportFormat,
+            TextExportMode              = config.ExportSettings.TextExportMode,
+            SpriteExportMode            = config.ExportSettings.SpriteExportMode,
+            ShaderExportMode            = config.ExportSettings.ShaderExportMode,
+            ScriptLanguageVersion       = config.ExportSettings.ScriptLanguageVersion,
+            // ScriptExportMode            = export.ScriptExportMode,
+            ScriptExportMode            = ScriptExportMode.Decompiled,
+            LightmapTextureExportFormat = config.ExportSettings.LightmapTextureExportFormat,
+            ImageExportFormat           = config.ExportSettings.ImageExportFormat,
+                    
+            EnablePrefabOutlining       = config.ProcessingSettings.EnablePrefabOutlining,
+            EnableStaticMeshSeparation  = config.ProcessingSettings.EnableStaticMeshSeparation,
+            EnableAssetDeduplication    = config.ProcessingSettings.EnableAssetDeduplication,
+            BundledAssetsExportMode     = config.ProcessingSettings.BundledAssetsExportMode,
+        };
+    }
+    
+    public static ExtractSettings Disabled {
+        get {
+            return new ExtractSettings() {
+                ScriptContentLevel          = default,
+                StreamingAssetsMode         = default,
+                IgnoreStreamingAssets       = default,
+                        
+                AudioExportFormat           = default,
+                TextExportMode              = default,
+                SpriteExportMode            = default,
+                ShaderExportMode            = default,
+                ScriptLanguageVersion       = default,
+                ScriptExportMode            = default,
+                LightmapTextureExportFormat = default,
+                ImageExportFormat           = default,
+                        
+                EnablePrefabOutlining       = default,
+                EnableStaticMeshSeparation  = default,
+                EnableAssetDeduplication    = default,
+                BundledAssetsExportMode     = default,
+            };
+        }
+    }
 }
