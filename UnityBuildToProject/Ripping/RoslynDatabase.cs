@@ -98,7 +98,7 @@ public record RoslynDatabase {
         }
         
         // debug
-        var logFile = Path.Combine(Program.LogsFolder, "write_log.log");
+        var logFile = Path.Combine(Paths.LogsFolder, "write_log.log");
         File.Delete(logFile);
         using (var writer = new StreamWriter(logFile)) {
             foreach (var merge in toReplace) {

@@ -4,32 +4,6 @@ using Spectre.Console;
 namespace Nomnom;
 
 class Program {
-    public static string OutputFolder {
-        get {
-            var exePath = Assembly.GetEntryAssembly()?.Location;
-            if (!File.Exists(exePath)) {
-                throw new FileNotFoundException(exePath);
-            }
-            
-            var outputPath = Path.GetFullPath(
-                Path.Combine(
-                    exePath,
-                    ".."
-                )
-            );
-            
-            return outputPath;
-        }
-    }
-    
-    public static string LogsFolder {
-        get {
-            var path = Path.Combine(OutputFolder, "logs");
-            Directory.CreateDirectory(path);
-            return path;
-        }
-    }
-    
     static async Task Main(string[] args) {
         try {
             LogFile.Create();
@@ -64,10 +38,7 @@ class Program {
     }
     
     static void LoadDllsFromLib() {
-        var libPath = Path.Join(
-            OutputFolder,
-            "lib"
-        );
+        var libPath = Paths.LibFolder;
         
         AnsiConsole.WriteLine("Loading dlls from /lib...");
         foreach (var dll in Directory.GetFiles(libPath, "*.dll", SearchOption.TopDirectoryOnly)) {

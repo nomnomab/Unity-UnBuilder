@@ -564,7 +564,7 @@ public record PackageTree {
     }
     
     public void WriteToDisk(string name) {
-        var namePath = Path.Combine(Program.LogsFolder, name);
+        var namePath = Path.Combine(Paths.LogsFolder, name);
         File.Delete(namePath);
         
         using var writer = new StreamWriter(namePath);

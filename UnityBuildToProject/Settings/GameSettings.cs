@@ -15,16 +15,11 @@ public record GameSettings {
     }
     
     public static string GetSavePath(string gameName) {
-        var exePath = Assembly.GetEntryAssembly()?.Location;
-        if (!File.Exists(exePath)) {
-            throw new FileNotFoundException(exePath);
-        }
-        
         gameName = GetGameName(gameName);
             
         var outputPath = Path.GetFullPath(
             Path.Combine(
-                exePath,
+                Settings.FolderPath,
                 "..",
                 $"settings_game_{gameName}.toml"
             )
@@ -44,26 +39,14 @@ public record GameSettings {
     };
     
     public static GameSettings? Load(string gameName) {
-        var path = GetSavePath(gameName);
-        if (!File.Exists(path)) {
-            Save(Default, gameName);
-            return null;
-        }
-        
-        // load contents
-        var contents = File.ReadAllText(path);
-        var settings = TomletMain.To<GameSettings>(contents);
-        
-        Save(settings, gameName);
-        
+        var savePath = GetSavePath(gameName);
+        var settings = Settings.Load(savePath, Default, null);
         return settings;
     }
     
-    public static void Save(GameSettings settings, string gameName) {
-        var path = GetSavePath(gameName);
-        
-        var contents = TomletMain.TomlStringFrom(settings);
-        File.WriteAllText(path, contents);
+    public static void Save(AppSettings settings, string gameName) {
+        var savePath = GetSavePath(gameName);
+        Settings.Save(savePath, settings);
     }
 }
 

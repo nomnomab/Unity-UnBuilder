@@ -104,9 +104,9 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         var builtinDb    = await GuidMapping.ExtractGuids(unityInstall.GetBuiltInPackagesPath());
         profileDuration.Record("Extracting guids for Built-In packages");
         
-        // extractDb.WriteToDisk(Path.Combine(Program.LogsFolder, "extractDb.log"));
-        // projectDb.WriteToDisk(Path.Combine(Program.LogsFolder, "projectDb.log"));
-        // builtinDb.WriteToDisk(Path.Combine(Program.LogsFolder, "builtinDb.log"));
+        // extractDb.WriteToDisk(Path.Combine(Paths.LogsFolder, "extractDb.log"));
+        // projectDb.WriteToDisk(Path.Combine(Paths.LogsFolder, "projectDb.log"));
+        // builtinDb.WriteToDisk(Path.Combine(Paths.LogsFolder, "builtinDb.log"));
         
         // process the types between the two projects
         var extractTypes = await RoslynUtility.ExtractTypes(extractData.Config.ProjectRootPath);

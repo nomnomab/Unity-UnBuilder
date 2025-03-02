@@ -112,7 +112,7 @@ public record GuidDatabase {
     /// Go through each file mapping and write its guid back to disk.
     /// </summary>
     public static void ReplaceGuids(IEnumerable<GuidDatabaseMerge> merge, GuidDatabase[] databases) {
-        var logPath = Path.Combine(Program.LogsFolder, "replace_guids.log");
+        var logPath = Path.Combine(Paths.LogsFolder, "replace_guids.log");
         File.Delete(logPath);
         using var writer = new StreamWriter(logPath);
         

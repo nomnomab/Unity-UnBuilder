@@ -29,14 +29,9 @@ On Windows this is typically: ""C:/Program Files/Unity/Hub/Editor"".")]
     
     public static string SavePath {
         get {
-            var exePath = Assembly.GetEntryAssembly()?.Location;
-            if (!File.Exists(exePath)) {
-                throw new FileNotFoundException(exePath);
-            }
-            
             var outputPath = Path.GetFullPath(
                 Path.Combine(
-                    exePath,
+                    Settings.FolderPath,
                     "..",
                     "settings.toml"
                 )
@@ -48,46 +43,27 @@ On Windows this is typically: ""C:/Program Files/Unity/Hub/Editor"".")]
     
     public static readonly AppSettings Default = new() {
         UnityHubFolder      = new CrossPlatformString(
-            windows: "C:/Program Files/Unity Hub", 
-            unix   : "~/Applications/Unity\\ Hub.AppImage", 
-            macOs  : "/Applications/Unity\\ Hub.app/Contents/MacOS/Unity\\ Hub"
+            Windows: "C:/Program Files/Unity Hub", 
+            Unix   : "~/Applications/Unity\\ Hub.AppImage", 
+            MacOs  : "/Applications/Unity\\ Hub.app/Contents/MacOS/Unity\\ Hub"
         ).GetValue(),
         
         UnityInstallsFolder = new CrossPlatformString(
-            windows: "C:/Program Files/Unity/Hub/Editor", 
-            unix   : "",
-            macOs  : ""
+            Windows: "C:/Program Files/Unity/Hub/Editor", 
+            Unix   : "",
+            MacOs  : ""
         ).GetValue(),
         
         ExtractSettings     = ExtractSettings.Default,
     };
     
     public static AppSettings? Load() {
-        var path = SavePath;
-        if (!File.Exists(path)) {
-            Save(Default);
-            return null;
-        }
-        
-        // load contents
-        var contents = File.ReadAllText(path);
-        var settings = TomletMain.To<AppSettings>(contents);
-        
-        // verify values are assigned
-        if (!Directory.Exists(settings.UnityInstallsFolder)) {
-            throw new InvalidAppSettingsFieldException(nameof(UnityInstallsFolder));
-        }
-        
-        Save(settings);
-        
+        var settings = Settings.Load(SavePath, Default, Validate);
         return settings;
     }
     
     public static void Save(AppSettings settings) {
-        var path   = SavePath;
-        
-        var contents = TomletMain.TomlStringFrom(settings);
-        File.WriteAllText(path, contents);
+        Settings.Save(SavePath, settings);
     }
     
     public static void Validate(AppSettings settings) {
@@ -97,6 +73,10 @@ On Windows this is typically: ""C:/Program Files/Unity/Hub/Editor"".")]
         
         if (string.IsNullOrEmpty(settings.UnityInstallsFolder)) {
             throw new Exception("UnityInstallsFolder was not assigned in the settings.toml");
+        }
+        
+        if (!Directory.Exists(settings.UnityInstallsFolder)) {
+            throw new InvalidAppSettingsFieldException(nameof(UnityInstallsFolder));
         }
     }
 }

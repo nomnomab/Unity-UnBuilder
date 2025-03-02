@@ -114,7 +114,7 @@ public static class Utility {
         
         var name         = Path.GetFileNameWithoutExtension(localPath);
         var scriptPath   = Path.Combine(folder, $"{name}.cs");
-        var path         = Path.Combine(Program.OutputFolder, "Resources", $"{name}.cs.txt");
+        var path         = Path.Combine(Paths.ResourcesFolder, $"{name}.cs.txt");
         using var stream = new StreamReader(path);
         var contents     = stream.ReadToEnd();
         
