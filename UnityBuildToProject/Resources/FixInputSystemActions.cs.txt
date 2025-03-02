@@ -1,0 +1,145 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using UnityEditor;
+using UnityEngine;
+using Object = UnityEngine.Object;
+
+namespace Nomnom {
+    public static class FixInputSystemActions {
+        public static void Fix() {
+            var inputActions = AssetDatabase.FindAssets("t:InputActionAsset", new string[] {
+                "Assets"
+            });
+            
+            foreach (var guid in inputActions) {
+                try {
+                    var assetPath            = AssetDatabase.GUIDToAssetPath(guid);
+                    // ? need this otherwise unity won't load up all the input data :/
+                    var inputActionAssetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+                
+                    var asset = AssetDatabase.LoadAssetAtPath(assetPath, inputActionAssetType);
+                    var clone = Object.Instantiate(asset);
+                    
+                    var path  = Path.GetFullPath(assetPath);
+                    var text  = File.ReadAllText(path);
+                    
+                    clone.name = asset.name;
+                    
+                    var json    = Fix(clone);
+                    
+                    // new file
+                    var newPath = Path.Combine(Path.GetDirectoryName(path), $"{Path.GetFileNameWithoutExtension(path)}.inputactions");
+                    File.WriteAllText(newPath, json);
+                    
+                    // new meta
+                    var metaFile = path + ".meta";
+                    newPath = newPath + ".meta";
+                    File.Copy(metaFile, newPath, true);
+                    
+                    // delete old
+                    File.Delete(path);
+                    File.Delete(metaFile);
+                    
+                    UnityEngine.Debug.Log("Fixed: " + assetPath);
+                } catch (Exception e) {
+                    UnityEngine.Debug.LogError(e);
+                }
+            }
+        }
+        
+        private static string Fix(UnityEngine.Object clone) {
+            // some terrible string manipulation to fix the json, but idc it works
+            var json = JsonUtility.ToJson(clone, true);
+            var lines = json.Split('\n').ToList();
+            lines.Insert(1, $"  \"m_Name\": \"{clone.name}\",");
+            json = string.Join("\n", lines);
+            foreach (var group in Regex.Matches(json, @"""(m_[^""]*)""").Cast<Match>().ToArray()) {
+                var value = group.Value.Replace("m_", string.Empty);
+                var charArray = value.ToCharArray();
+                charArray[1] = char.ToLower(charArray[1]);
+                value = new string(charArray);
+                json = json.Replace(group.Value, value);
+            }
+            json = json.Replace("\"actionMaps\"", "\"maps\"");
+
+            var jsonObj = JObject.Parse(json);
+            var maps = jsonObj["maps"];
+
+            foreach (JObject map in maps) {
+                var actions = map["actions"];
+                var assetProperty = map.Property("asset");
+                assetProperty?.Remove();
+
+                foreach (JObject action in actions) {
+                    var newAction = new JObject();
+                    var flags = action["flags"].Value<int>();
+                    action["initialStateCheck"] = flags == 1;
+
+                    var type = action["type"].Value<int>();
+                    switch (type) {
+                        case 0:
+                            newAction["type"] = "Value";
+                            break;
+                        case 1:
+                            newAction["type"] = "Button";
+                            break;
+                        case 2:
+                            newAction["type"] = "PassThrough";
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+
+                    var flagProperty = action.Property("flags");
+                    flagProperty?.Remove();
+
+                    var singletonActionBindingsProperty = action.Property("singletonActionBindings");
+                    singletonActionBindingsProperty?.Remove();
+                }
+
+                var bindings = map["bindings"];
+                foreach (JObject binding in bindings) {
+                    var flags = binding["flags"].Value<int>();
+                    binding["isComposite"] = (flags & 4) == 4;
+                    binding["isPartOfComposite"] = (flags & 8) == 8;
+
+                    var flagProperty = binding.Property("flags");
+                    flagProperty?.Remove();
+                }
+            }
+
+            var controlSchemes = jsonObj["controlSchemes"];
+            foreach (JObject controlScheme in controlSchemes) {
+                var devices = new JArray();
+                var deviceRequirements = controlScheme["deviceRequirements"];
+                foreach (JObject deviceRequirement in deviceRequirements) {
+                    deviceRequirement["devicePath"] = deviceRequirement["controlPath"];
+
+                    var flags = deviceRequirement["flags"].Value<int>();
+                    deviceRequirement["isOptional"] = (flags & 1) == 1;
+                    deviceRequirement["isOR"] = (flags & 2) == 2;
+
+                    var flagProperty = deviceRequirement.Property("flags");
+                    flagProperty?.Remove();
+
+                    var controlPathProperty = deviceRequirement.Property("controlPath");
+                    controlPathProperty?.Remove();
+
+                    devices.Add(deviceRequirement);
+                }
+
+                var deviceRequirementsProperty = controlScheme.Property("deviceRequirements");
+                deviceRequirementsProperty?.Remove();
+
+                controlScheme["devices"] = devices;
+            }
+
+            json = jsonObj.ToString(Formatting.Indented);
+            return json;
+        }
+    }
+}

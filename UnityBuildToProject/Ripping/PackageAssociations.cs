@@ -362,7 +362,7 @@ public record PackageTree {
     
     public static PackageTree Build(IEnumerable<PackageInfo> packages, UnityPackages versionPackages) {
         var tree = new PackageTree() {
-            Nodes = []
+            Nodes    = [],
         };
         
         var workingPackages = packages.Where(x => !PackageAssociations.ExcludeIds.Contains(x.Id))
@@ -379,7 +379,7 @@ public record PackageTree {
         
         // add the root nodes
         foreach (var package in packagesNoDependencies) {
-            AnsiConsole.WriteLine($"{package.x.Id} has no dependencies");
+            AnsiConsole.WriteLine($"{package.x.Id} @ {package.Item2?.m_Version ?? ""} has no dependencies");
             
             tree.Nodes.Add(new PackageTreeNode {
                 Info     = package.x,
@@ -390,7 +390,7 @@ public record PackageTree {
         
         // now link up the packages that have a dependency to another.
         foreach (var package in workingPackages) {
-            AnsiConsole.WriteLine($"Checking {package.Id}");
+            AnsiConsole.WriteLine($"Checking package {package.Id}");
             
             var versionPackage = versionPackages.FindById(package.Id);
             if (versionPackage == null) {
@@ -404,9 +404,13 @@ public record PackageTree {
             foreach (var dependency in dependencies) {
                 if (dependency.m_Name == null) continue;
                 
+                Console.WriteLine($" - checking dependency {dependency.m_Name}");
+                
                 // find the dependency
                 var parentNode = tree.Find(dependency.m_Name);
                 if (parentNode == null) {
+                    Console.WriteLine($" - no parent found");
+                    
                     // no dependency found, make a new one
                     var association = PackageAssociations.FindAssociationFromId(dependency.m_Name);
                     if (association != null) {
@@ -417,27 +421,25 @@ public record PackageTree {
                         };
                         
                         tree.Nodes.Add(parentNode);
+                        Console.WriteLine($" - new parent node");
                     } else {
-                        AnsiConsole.MarkupLine($"[red]Failed[/] to find package association for \"{dependency.m_Name}\"");
+                        AnsiConsole.MarkupLine($" - [red]failed[/] to find package association for \"{dependency.m_Name}\"");
                         continue;
                     }
                 }
                 
-                parentNode.Children.Add(new PackageTreeNode {
-                    Info     = package,
-                    Version  = versionPackage.m_Version ?? "",
-                    Children = []
-                });
-                
-                foundDependency = true;
+                parentNode.Children.Add(package.Id);
+                Console.WriteLine($" - added {package.Id} to {parentNode.Info.Id}");
             }
             
-            if (!foundDependency) {
+            if (tree.Find(package.Id) == null) {
                 tree.Nodes.Add(new PackageTreeNode {
                     Info     = package,
                     Version  = versionPackage.m_Version ?? "",
                     Children = []
                 });
+                
+                Console.WriteLine($" - added {package.Id} to tree");
             }
             
             AnsiConsole.WriteLine($"Done checking {package.Id}");
@@ -460,29 +462,28 @@ public record PackageTree {
     
     public PackageTreeNode? Find(string id) {
         foreach (var node in Nodes) {
-            var found = _Find(id, node);
-            if (found != null) {
-                return found;
+            if (node.Info.Id == id) {
+                return node;
             }
         }
         
         return null;
         
         // finds a node that matches the id
-        static PackageTreeNode? _Find(string id, PackageTreeNode node) {
-            if (node.Info.Id == id) {
-                return node;
-            }
+        // static PackageTreeNode? _Find(string id, PackageTreeNode node) {
+        //     if (node.Info.Id == id) {
+        //         return node;
+        //     }
             
-            foreach (var child in node.Children) {
-                var found = _Find(id, child);
-                if (found != null) {
-                    return found;
-                }
-            }
+        //     foreach (var child in node.Children) {
+        //         var found = _Find(id, child);
+        //         if (found != null) {
+        //             return found;
+        //         }
+        //     }
             
-            return null;
-        }
+        //     return null;
+        // }
     }
     
     public void Remove(string id) {
@@ -493,21 +494,21 @@ public record PackageTree {
                 return;
             }
             
-            _Find(id, node);
+            // _Find(id, node);
         }
         
         // finds a node that matches the id
-        static void _Find(string id, PackageTreeNode node) {
-            for (int i = 0; i < node.Children.Count; i++) {
-                var child = node.Children[i];
-                if (child.Info.Id == id) {
-                    node.Children.RemoveAt(i);
-                    return;
-                }
+        // static void _Find(string id, PackageTreeNode node) {
+        //     for (int i = 0; i < node.Children.Count; i++) {
+        //         var child = node.Children[i];
+        //         if (child.Info.Id == id) {
+        //             node.Children.RemoveAt(i);
+        //             return;
+        //         }
                 
-                _Find(id, child);
-            }
-        }
+        //         _Find(id, child);
+        //     }
+        // }
     }
     
     public IEnumerable<(string, string)> GetList() {
@@ -518,9 +519,14 @@ public record PackageTree {
         yield return (node.Info.Id, node.Version);
             
         foreach (var child in node.Children) {
-            foreach (var c in GetList(child)) {
-                yield return c;
+            var childNode = Find(child);
+            if (childNode != null) {
+                yield return (childNode.Info.Id, childNode.Version);
             }
+            
+            // foreach (var c in GetList(child)) {
+            //     yield return c;
+            // }
         }
     }
     
@@ -535,15 +541,24 @@ public record PackageTree {
             }
         }
         
-        static IEnumerable<PackageTreeNode> getChildrenNodes(PackageTreeNode node) {
+        IEnumerable<PackageTreeNode> getChildrenNodes(PackageTreeNode node) {
             yield return node;
             
             foreach (var child in node.Children) {
-                yield return child;
-                
-                foreach (var n in getChildrenNodes(child)) {
-                    yield return n;
+                var childNode = Find(child);
+                if (childNode != null) {
+                    yield return childNode;
+                    
+                    foreach (var n in getChildrenNodes(childNode)) {
+                        yield return n;
+                    }
                 }
+                
+                // yield return child;
+                
+                // foreach (var n in getChildrenNodes(child)) {
+                //     yield return n;
+                // }
             }
         }
     }
@@ -567,7 +582,12 @@ public record PackageTree {
             
             if (node.Children.Count > 0) {
                 foreach (var child in node.Children) {
-                    LogNode(child, ident + 1);
+                    var childNode = Find(child);
+                    if (childNode != null) {
+                        LogNode(childNode, ident + 1);
+                    }
+                    
+                    // LogNode(child, ident + 1);
                 }
             }
         }
@@ -583,14 +603,19 @@ public record PackageTree {
         
         AnsiConsole.Write(tree);
         
-        static void LogNode(PackageTreeNode node, Tree tree) {
+        void LogNode(PackageTreeNode node, Tree tree) {
             var name = $"{node.Info.Id} @ {node.Version}";
             if (node.Children.Count > 0) {
                 var nested = new Tree(name);
                 tree.AddNode(nested);
                 
                 foreach (var child in node.Children) {
-                    LogNode(child, nested);
+                    var childNode = Find(child);
+                    if (childNode != null) {
+                        LogNode(childNode, nested);
+                    }
+                    
+                    // LogNode(child, nested);
                 }
             } else {
                 tree.AddNode(name);
@@ -602,5 +627,5 @@ public record PackageTree {
 public record PackageTreeNode {
     public required string Version;
     public required PackageInfo Info;
-    public required List<PackageTreeNode> Children = [];
+    public required List<string> Children = [];
 }

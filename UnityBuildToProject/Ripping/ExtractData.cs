@@ -54,7 +54,10 @@ public record ExtractData {
                 "Sprite",
                 "Shader",
                 "Scenes",
-                "Resources"
+                "Resources",
+                "Plugins",
+                "ComputeShader",
+                "Editor"
             };
             
             foreach (var folder in folders) {
@@ -137,7 +140,7 @@ public record ExtractData {
     public static void RemoveEditorFolderFromProject(string projectPath) {
         AnsiConsole.MarkupLine($"[red]Deleting[/] editor folder from \"{projectPath}\"");
         
-        var editorFolderPath = Path.Combine(projectPath, "Assets", "Editor");
+        var editorFolderPath = Utility.GetEditorScriptFolder(projectPath);
         if (Directory.Exists(editorFolderPath)) {
             Directory.Delete(editorFolderPath, true);
         }

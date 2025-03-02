@@ -108,10 +108,11 @@ public static class Utility {
         AnsiConsole.MarkupLine("[green]Done[/] copying!");
     }
     
-    public static void CopyOverScript(string projectPath, string name, Func<string, string>? updateText = null) {
+    public static string CopyOverScript(string projectPath, string localPath, Func<string, string>? updateText = null) {
         var folder = GetEditorScriptFolder(projectPath);
         Directory.CreateDirectory(folder);
         
+        var name         = Path.GetFileNameWithoutExtension(localPath);
         var scriptPath   = Path.Combine(folder, $"{name}.cs");
         var path         = Path.Combine(Program.OutputFolder, "Resources", $"{name}.cs.txt");
         using var stream = new StreamReader(path);
@@ -122,10 +123,11 @@ public static class Utility {
         }
         
         File.WriteAllText(scriptPath, contents);
+        return scriptPath;
     }
     
     public static string GetEditorScriptFolder(string projectPath) {
-        return Path.Combine(projectPath, "Assets", "Editor");
+        return Path.Combine(projectPath, "Assets", "_CustomEditor", "Editor");
     }
     
     public static string ClampPathFolders(string path, int maxFolders) {
@@ -150,6 +152,7 @@ public static class Utility {
 
 public record ProfileDuration {
     public DateTime Start = DateTime.Now;
+    public DateTime Origin = DateTime.Now;
     
     public List<ProfileDurationTimestamp> Timestamps = [];
     
@@ -171,6 +174,11 @@ public record ProfileDuration {
         foreach (var (label, duration) in Timestamps) {
             AnsiConsole.MarkupLine($"[green]{label.PadRight(maxLabelLength)}[/]: {duration.Minutes}m {duration.Seconds}s");
         }
+        
+        AnsiConsole.WriteLine();
+        
+        var total = DateTime.Now - Origin;
+        AnsiConsole.MarkupLine($"[green]Total[/]: {total.Minutes}m {total.Seconds}s");
     }
 }
 

@@ -196,6 +196,7 @@ public record GuidDatabase {
                         case UnityClassId.Texture2D:
                         case UnityClassId.Texture2DArray:
                         case UnityClassId.Texture3D:
+                        case UnityClassId.VideoClip:
                         
                         Console.WriteLine($" - cannot handle \"{first.ClassId}\"");
                         writer.WriteLine($" - cannot handle \"{first.ClassId}\"");

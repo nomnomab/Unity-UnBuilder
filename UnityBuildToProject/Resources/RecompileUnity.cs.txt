@@ -19,6 +19,7 @@ namespace Nomnom {
 #endif
             
             AssetDatabase.Refresh();
+            EditorApplication.Exit(0);
         }
     }
 }

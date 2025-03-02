@@ -16,11 +16,11 @@ The main goal of this project is to make a better version of my prior build->pro
     [x] Keep a self-made list of associations and have version overrides if needed
 [x] Match all available packages to the ones in the game via DLLs
     [ ] Prompt when there are some that don't match
-    [ ] Match DLLs from SRC/GameAssemblies with the ones in TEMP/Library/ScriptAssemblies
+    [x] Match DLLs from SRC/GameAssemblies with the ones in TEMP/Library/ScriptAssemblies
         Matches can say which packages are installed, which would make some mapping easier?
-    [ ] Also map packages in [UnityHubPath]\Editor\Data\Resources\PackageManager\BuiltInPackages
+    [x] Also map packages in [UnityHubPath]\Editor\Data\Resources\PackageManager\BuiltInPackages
         if there isn't the package in the project :/
-[ ] Connect the package files to the output files
+[x] Connect the package files to the output files
     [x] Builds a lookup for the TEMP project of all of its scripts, as the
         original project won't have them attached to the normal packages properly.
     [x] Need to first find which guids map from the TEMP project to the SRC project.
@@ -44,3 +44,14 @@ The main goal of this project is to make a better version of my prior build->pro
     Probably assign in game specific settings
 [ ] Assign LocalizationSettings if available and installed
     [ ] Fetch localization tables
+[ ] Rename files entirely after the fact, such as txt -> csv
+[x] Fix new input system asset files
+    [x] Proper file extension
+    [x] Proper json data
+    [ ] New action asset isn't properly being inserted
+        Thinks it is corrupted or an old version
+[ ] Map generated shaders to existing shaders in the project
+    Such as Unity standard shaders
+[ ] InputSystemUIInputModule fails to fix guid
+    Something wrong with the package itself?
+[ ] TextMeshPro needs to import the "essentials" unitypackage

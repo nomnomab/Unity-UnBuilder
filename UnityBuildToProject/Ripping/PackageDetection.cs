@@ -15,12 +15,25 @@ public sealed class PackageDetection {
     /// <summary>
     /// Extracts the packages from a dummy project that uses project settings from
     /// the AssetRipper exported project.
-    /// </summary>s
+    /// </summary>
     public async Task<UnityPackages> GetPackagesFromVersion(UnityPath unityPath) {
         var projectPath     = _extractData.Config.ProjectRootPath;
         Directory.CreateDirectory(projectPath);
         
         var tempProjectPath = _extractData.GetProjectPath();
+        // if (Directory.Exists(tempProjectPath)) {
+        //     AnsiConsole.MarkupLine("[red]Deleting[/] previous project...");
+            
+        //     var files = Directory.GetFiles(tempProjectPath, "*.*", SearchOption.AllDirectories);
+        //     foreach (var file in files) {
+        //         var shortFile = Utility.ClampPathFolders(file, 4);
+        //         AnsiConsole.MarkupLine($"[red]Deleting[/]  \"{shortFile}\"");
+        //         File.Delete(file);
+        //     }
+            
+        //     Directory.Delete(tempProjectPath, true);
+        // }
+        
         Utility.CopyOverScript(tempProjectPath, "RouteStdOutput");
         
         // create a dummy script that will instantly run on load
@@ -107,16 +120,33 @@ public sealed class PackageDetection {
         
         // build a dependency tree
         var packageTree = PackageTree.Build(foundPackages, versionPackages);
+        
+        // for now make sure there is always newtonsoft json included
+        if (packageTree.Find("com.unity.nuget.newtonsoft-json") == null) {
+            var package = PackageAssociations.FindAssociationFromId("com.unity.nuget.newtonsoft-json");
+            packageTree.Nodes.Add(new PackageTreeNode() {
+                Info = package!,
+                Version = "",
+                Children = []
+            });
+        }
+        
         return packageTree;
     }
     
     public void ApplyGameSettingsPackages(GameSettings gameSettings, PackageTree packageTree) {
         if (gameSettings.PackageOverrides == null) {
+            Console.WriteLine($"No package overrides");
             return;
         }
         
         var overrides = gameSettings.PackageOverrides;
-        if (overrides.Packages == null) return;
+        if (overrides.Packages == null) {
+            Console.WriteLine($"No packages");
+            return;
+        }
+        
+        Console.WriteLine($"{overrides.Packages.Length} packages to override");
         
         foreach (var (id, version) in overrides.Packages) {
             // if the package exists, replace the version

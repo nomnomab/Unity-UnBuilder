@@ -76,33 +76,33 @@ public static class Extract {
         };
     }
     
-    public static async Task DecompileShaders(BuildMetadata buildMetadata, ExtractPath extractPath) {
-        AnsiConsole.MarkupLine("[underline]Extracting shaders...[/]");
+    // public static async Task DecompileShaders(BuildMetadata buildMetadata, ExtractPath extractPath) {
+    //     AnsiConsole.MarkupLine("[underline]Extracting shaders...[/]");
         
-        // log with the specific one below
-        Logger.Clear();
-        Logger.Add(new ExtractLogger());
+    //     // log with the specific one below
+    //     Logger.Clear();
+    //     Logger.Add(new ExtractLogger());
         
-        var tmpConfig = new LibraryConfiguration();
-        tmpConfig.LoadFromDefaultPath();
-        var exportRootPath  = Path.Combine(tmpConfig.ExportRootPath, "..", "ExportedShaders");
-        var extractSettings = ExtractSettings.Disabled;
-        var (config, gameData, exportHandler) = ExtractGameData(extractSettings, exportRootPath, buildMetadata, true);
+    //     var tmpConfig = new LibraryConfiguration();
+    //     tmpConfig.LoadFromDefaultPath();
+    //     var exportRootPath  = Path.Combine(tmpConfig.ExportRootPath, "..", "ExportedShaders");
+    //     var extractSettings = ExtractSettings.Disabled;
+    //     var (config, gameData, exportHandler) = ExtractGameData(extractSettings, exportRootPath, buildMetadata, true);
         
-        PrintLibraryConfiguration(config, false);
+    //     PrintLibraryConfiguration(config, false);
         
-        await Task.Delay(1000);
+    //     await Task.Delay(1000);
         
-        // starts a thread to export with AssetRipper
-        // and waits for it to finish or fail
-        await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Aesthetic)
-            .StartAsync("Exporting...", 
-            async ctx => await WaitForAssetRipper(ctx, extractPath, exportHandler, gameData)
-        );
+    //     // starts a thread to export with AssetRipper
+    //     // and waits for it to finish or fail
+    //     await AnsiConsole.Status()
+    //         .Spinner(Spinner.Known.Aesthetic)
+    //         .StartAsync("Exporting...", 
+    //         async ctx => await WaitForAssetRipper(ctx, extractPath, exportHandler, gameData)
+    //     );
         
-        Logger.Clear();
-    }
+    //     Logger.Clear();
+    // }
     
     static async Task WaitForAssetRipper(StatusContext ctx, ExtractPath extractPath, ExportHandler exportHandler, GameData gameData) {
         var task = Task.Run(() => {
