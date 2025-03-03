@@ -17,33 +17,15 @@ public sealed class PackageDetection {
     /// the AssetRipper exported project.
     /// </summary>
     public async Task<UnityPackages> GetPackagesFromVersion(UnityPath unityPath) {
-        var projectPath     = _extractData.Config.ProjectRootPath;
-        Directory.CreateDirectory(projectPath);
+        var projectPath    = _extractData.Config.ProjectRootPath;
+        var newProjectPath = await _extractData.CreateNewProject();
         
-        var tempProjectPath = _extractData.GetProjectPath();
-        // if (Directory.Exists(tempProjectPath)) {
-        //     AnsiConsole.MarkupLine("[red]Deleting[/] previous project...");
-            
-        //     var files = Directory.GetFiles(tempProjectPath, "*.*", SearchOption.AllDirectories);
-        //     foreach (var file in files) {
-        //         var shortFile = Utility.ClampPathFolders(file, 4);
-        //         AnsiConsole.MarkupLine($"[red]Deleting[/]  \"{shortFile}\"");
-        //         File.Delete(file);
-        //     }
-            
-        //     Directory.Delete(tempProjectPath, true);
-        // }
+        Utility.CopyOverScript(newProjectPath, "RouteStdOutput");
         
-        Utility.CopyOverScript(tempProjectPath, "RouteStdOutput");
-        
+        // if (!args.SkipPackageFetching) {
         // create a dummy script that will instantly run on load
         // which will extract all of the package information for this unity version
-        Utility.CopyOverScript(tempProjectPath, "ExtractUnityVersionPackages");
-        
-        await Utility.CopyFilesRecursivelyPretty(
-            Path.Combine(projectPath, "ProjectSettings"), 
-            Path.Combine(tempProjectPath, "ProjectSettings")
-        );
+        Utility.CopyOverScript(newProjectPath, "ExtractUnityVersionPackages");
         
         AnsiConsole.MarkupLine("[yellow]Fetching packages from project.[/]");
         
@@ -58,19 +40,20 @@ public sealed class PackageDetection {
         
         await Task.Delay(3000);
         
-        await UnityCLI.OpenProjectWithArgs("Fetching packages...", unityPath, tempProjectPath, 
+        await UnityCLI.OpenProjectWithArgs("Fetching packages...", unityPath, newProjectPath, 
             true,
             "-disable-assembly-updater",
             "-silent-crashes",
             "-batchmode",
             "-logFile -", 
             "-executeMethod Nomnom.ExtractUnityVersionPackages.OnLoad",
-            "-exit",
+            "-quit",
             "| Write-Output"
         );
+        // }
         
         // now parse the file the extractor created
-        var filePath = Path.Combine(tempProjectPath, "packages_output.json");
+        var filePath = Path.Combine(newProjectPath, "..", "packages_output.json");
         if (!File.Exists(filePath)) {
             throw new FileNotFoundException(filePath);
         }
@@ -247,7 +230,7 @@ public sealed class PackageDetection {
             "-batchmode",
             "-logFile -",
             "-executeMethod Nomnom.InstallPackages.OnLoad",
-            "-exit",
+            "-quit",
             "| Write-Output"
         );
     }

@@ -22,7 +22,7 @@ public record GuidDatabase {
             var extension = Path.GetExtension(file);
             if (extension == null) continue;
 
-            var clampedFile = Utility.ClampPathFolders(file, 4);
+            var clampedFile = Utility.ClampPathFolders(file, 6);
             Console.WriteLine($"Checking guids for {clampedFile}");
             
             switch (extension) {
@@ -32,26 +32,50 @@ public record GuidDatabase {
                     
                     if (!db.FilePathToGuid.ContainsKey(assetFile)) {
                         var metaFile = UnityAssetTypes.ParseMetaFile(file);
-                        if (metaFile == null) continue;
+                        if (metaFile == null) {
+                            // Console.WriteLine($" - no metaFile");
+                            continue;
+                        }
                         
                         db.FilePathToGuid.TryAdd(assetFile, metaFile.Guid);
                         db.AddAssociatedGuid(metaFile.Guid, assetFile);
                         db.AddAssociatedGuid(metaFile.Guid, file);
                         
-                        // Console.WriteLine($"{metaFile.Guid}::meta:\n - {assetFile}\n - {file}");
+                        // Console.WriteLine($" - {metaFile.Guid}::meta:\n - {assetFile}\n - {file}");
                     }
                 }
                 break;
+                
+                case ".mp3":
+                case ".mp4":
+                case ".ogg":
+                case ".wav":
+                case ".shader":
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".tiff":
+                case ".tga":
+                case ".gif":
+                case ".svg":
+                break;
+                
                 default: {
                     // parse meta file
                     var metaFilePath = file + ".meta";
                     var metaFile = UnityAssetTypes.ParseMetaFile(metaFilePath);
                     
                     // needs a meta file for a guid
-                    if (metaFile == null) continue;
+                    if (metaFile == null) {
+                        // Console.WriteLine($" - no metaFile");
+                        continue;
+                    }
                 
                     var assetFile = UnityAssetTypes.ParseAssetFile(file);
-                    if (assetFile == null) continue;
+                    if (assetFile == null) {
+                        // Console.WriteLine($" - no assetFile");
+                        continue;
+                    }
                     
                     // attach to asset file path + guid
                     db.Assets.TryAdd(metaFile.Guid, assetFile);
@@ -59,14 +83,14 @@ public record GuidDatabase {
                     db.AddAssociatedGuid(metaFile.Guid, assetFile.FilePath);
                     db.AddAssociatedGuid(metaFile.Guid, metaFilePath);
                     
-                    // Console.WriteLine($"{metaFile.Guid}::asset:\n - {assetFile}\n - {assetFile.FilePath}\n - {metaFilePath}");
+                    // Console.WriteLine($" - {metaFile.Guid}::asset:\n - {assetFile}\n - {assetFile.FilePath}\n - {metaFilePath}");
                     
-                    foreach (var obj in assetFile.Objects) {
-                        foreach (var reference in obj.AssetReferences) {
-                            db.AddAssociatedGuid(reference.Guid, assetFile.FilePath);
-                            // Console.WriteLine($" - {reference}");
-                        }
-                    }
+                    // foreach (var obj in assetFile.Objects) {
+                    //     foreach (var reference in obj.AssetReferences) {
+                    //         db.AddAssociatedGuid(reference.Guid, assetFile.FilePath);
+                    //         Console.WriteLine($"     - {reference}");
+                    //     }
+                    // }
                 }
                 break;
             }
@@ -136,7 +160,7 @@ public record GuidDatabase {
         var mainDb = databases[0];
         foreach (var m in merge) {
             if (!mainDb.AssociatedFilePaths.TryGetValue(m.GuidFrom, out var filePaths)) {
-                Console.WriteLine($"[not_found] {m.GuidFrom} with {m.GuidTo}");
+                // Console.WriteLine($"[not_found] {m.GuidFrom} with {m.GuidTo}");
                 writer.WriteLine($"[not_found] {m.GuidFrom} with {m.GuidTo}");
                 continue;
             }
@@ -156,7 +180,7 @@ public record GuidDatabase {
         
         foreach (var (file, list) in files) {
             var clamped = Utility.ClampPathFolders(file, 5);
-            Console.WriteLine($"[file] {clamped}:");
+            // Console.WriteLine($"[file] {clamped}:");
             writer.WriteLine($"[file] {clamped}:");
             
             var extension = Path.GetExtension(file);
@@ -170,7 +194,7 @@ public record GuidDatabase {
                 default: {
                     // any other file
                     if (!mainDb.FilePathToGuid.TryGetValue(file, out var guid)) {
-                        Console.WriteLine($" - no file");
+                        // Console.WriteLine($" - no file");
                         writer.WriteLine($" - no file");
                         continue;
                     }
@@ -180,7 +204,7 @@ public record GuidDatabase {
                         .FirstOrDefault();
                         
                     if (asset == null) {
-                        Console.WriteLine($" - no asset for {guid}");
+                        // Console.WriteLine($" - no asset for {guid}");
                         writer.WriteLine($" - no asset for {guid}");
                         continue;
                     }
@@ -198,7 +222,7 @@ public record GuidDatabase {
                         case UnityClassId.Texture3D:
                         case UnityClassId.VideoClip:
                         
-                        Console.WriteLine($" - cannot handle \"{first.ClassId}\"");
+                        // Console.WriteLine($" - cannot handle \"{first.ClassId}\"");
                         writer.WriteLine($" - cannot handle \"{first.ClassId}\"");
                         
                         continue;

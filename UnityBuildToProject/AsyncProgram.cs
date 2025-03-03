@@ -50,6 +50,7 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         
         var profileDuration = new ProfileDuration();
         
+        // fetch unity and build information
         var unityInstalls = UnityInstallsPath.FromFolder(settings.UnityInstallsFolder!);
         var buildPath     = BuildPath.FromExe(args.GameExecutablePath);
         var buildMeta     = BuildMetadata.Parse(buildPath);
@@ -59,22 +60,22 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         // extract assets to disk
         LogFile.Header("Extracting assets");
         
+        // get extraction information for AssetRipper
         var extractPath      = ExtractPath.FromOutputFolder("output");
         var (_, gameData, _) = Extract.ExtractGameData(settings.ExtractSettings, null, buildMeta, false);
         
         // fetch the unity install path for later
         var unityInstall     = UnityPath.FromVersion(unityInstalls, gameData.ProjectVersion.ToString());
-        var extractData      = await Extract.ExtractAssets(settings, buildMeta, extractPath);
-        // await Extract.DecompileShaders(buildMeta, extractPath);
+        var extractData      = await Extract.ExtractAssets(args, settings, buildMeta, extractPath);
         
-        profileDuration.Record("Extracting Assets");
+        profileDuration.Record("Extracting assets");
         LogFile.Header("Getting packages");
         
         // fetch the project package list for the unity version
         var packageDetection = new PackageDetection(extractData);
         var packages         = await packageDetection.GetPackagesFromVersion(unityInstall);
         
-        profileDuration.Record("Getting Packages");
+        profileDuration.Record("Getting packages");
         
         // try to determine which packages are for this specific project
         var packageTree      = packageDetection.TryToMapPackagesToProject(packages);
@@ -90,7 +91,10 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         
         // now import the packages
         await packageDetection.ImportPackages(unityInstall, packageTree);
-        profileDuration.Record("Importing Packages");
+        profileDuration.Record("Importing packages");
+        
+        await ApplyFixes.FixTextMeshPro(extractData, unityInstall);
+        profileDuration.Record("Fixed TextMeshPro");
         
         LogFile.Header("Extracting project information");
         
@@ -99,59 +103,67 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         profileDuration.Record("Extracting guids for AssetRipper project");
         
         var projectDb    = await GuidMapping.ExtractGuids(extractData.GetProjectPath());
-        profileDuration.Record("Extracting guids for Final project");
+        profileDuration.Record("Extracting guids for final project");
         
         var builtinDb    = await GuidMapping.ExtractGuids(unityInstall.GetBuiltInPackagesPath());
-        profileDuration.Record("Extracting guids for Built-In packages");
+        profileDuration.Record("Extracting guids for built-In packages");
         
-        // extractDb.WriteToDisk(Path.Combine(Paths.LogsFolder, "extractDb.log"));
-        // projectDb.WriteToDisk(Path.Combine(Paths.LogsFolder, "projectDb.log"));
-        // builtinDb.WriteToDisk(Path.Combine(Paths.LogsFolder, "builtinDb.log"));
-        
-        // process the types between the two projects
+        // process the types between the projects
         var extractTypes = await RoslynUtility.ExtractTypes(extractData.Config.ProjectRootPath);
         profileDuration.Record("Extracting types for AssetRipper project");
         
         var projectTypes = await RoslynUtility.ExtractTypes(extractData.GetProjectPath());
-        profileDuration.Record("Extracting types for Final project");
+        profileDuration.Record("Extracting types for final project");
         
         var builtInTypes = await RoslynUtility.ExtractTypes(unityInstall.GetBuiltInPackagesPath());
-        profileDuration.Record("Extracting types for Built-In packages");
+        profileDuration.Record("Extracting types for built-In packages");
         
+        // merge all of the types into the AssetRipper project
         RoslynDatabase.MergeInto(
             [extractDb, projectDb, builtinDb],
             [extractTypes, projectTypes, builtInTypes]
         );
         profileDuration.Record("Merging guids");
         
-        // todo: process assets
         // copy over the project assets once processed
         await extractData.CopyAssetsToProject(extractData.GetProjectPath(), testFoldersOnly: false);
+        
+        // tidy up the project folders
         ExtractData.RemoveEditorFolderFromProject(extractData.GetProjectPath());
         ExtractData.RemoveExistingPackageFoldersFromProjectScripts(gameSettings, extractData.GetProjectPath());
         ExtractData.RemoveLibraryFolders(extractData.Config.ProjectRootPath);
         
         packageTree.WriteToConsole();
         
-        profileDuration.Record("Copying Assets to Project");
+        profileDuration.Record("Copying Assets to project");
         LogFile.Header("Final steps");
         
-        // force a recompile
         Utility.CopyOverScript(extractData.GetProjectPath(), "RecompileUnity");
         
-        await UnityCLI.OpenProject("Opening project to recompile", unityInstall, false, extractData.GetProjectPath(),
-            "-disable-assembly-updater",
-            "-executeMethod Nomnom.RecompileUnity.OnLoad",
-            "-exit"
+        // disable the compress setting
+        // await UnityCLI.OpenProjectHidden("Opening project to disable compressing", unityInstall, true, extractData.GetProjectPath(),
+        //     "-executeMethod Nomnom.RecompileUnity.DisableCompress"
+        // );
+        
+        // force a recompile
+        await UnityCLI.OpenProjectHidden("Opening project to recompile", unityInstall, true, extractData.GetProjectPath(),
+            "-executeMethod Nomnom.RecompileUnity.OnLoad"
         );
+        
+        // await UnityCLI.OpenProject("Opening project to enable compressing", unityInstall, true, extractData.GetProjectPath(),
+        //     "-executeMethod Nomnom.RecompileUnity.EnableCompress"
+        // );
         
         profileDuration.Record("Recompiled project");
         
+        // apply any appropriate fixes for the specific project
         await ApplyFixes.FixAll(settings, gameSettings, extractData, packageTree, unityInstall);
         profileDuration.Record("Initialized remaining project requirements");
         
+        // final project open
         _ = UnityCLI.OpenProject("Opening project", unityInstall, false, extractData.GetProjectPath());
         
+        // done!
         LogFile.Header($"Results for {gameName}");
         profileDuration.PrintTimestamps();
     }

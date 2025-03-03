@@ -48,10 +48,10 @@ The main goal of this project is to make a better version of my prior build->pro
 [x] Fix new input system asset files
     [x] Proper file extension
     [x] Proper json data
-    [ ] New action asset isn't properly being inserted
+    [x] New action asset isn't properly being inserted
         Thinks it is corrupted or an old version
 [ ] Map generated shaders to existing shaders in the project
     Such as Unity standard shaders
-[ ] InputSystemUIInputModule fails to fix guid
+[x] InputSystemUIInputModule fails to fix guid
     Something wrong with the package itself?
-[ ] TextMeshPro needs to import the "essentials" unitypackage
+[x] TextMeshPro needs to import the "essentials" unitypackage

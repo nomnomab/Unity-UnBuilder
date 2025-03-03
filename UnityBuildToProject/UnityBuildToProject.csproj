@@ -31,8 +31,8 @@
   <PropertyGroup>
     <PreBuildEvent>
       rmdir /s /q "$(TargetDir)lib"
-      rmdir /s /q "$(TargetDir)output"
-      rmdir /s /q "$(TargetDir)logs"
+      <!-- rmdir /s /q "$(TargetDir)output" -->
+      <!-- rmdir /s /q "$(TargetDir)logs" -->
       exit 0
     </PreBuildEvent>
   </PropertyGroup>
@@ -41,7 +41,7 @@
     <PostBuildEvent>
       if not exist "$(TargetDir)lib" mkdir "$(TargetDir)lib"
       cd /D "$(TargetDir)"
-      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll Tomlet.dll Microsoft.*.dll settings*.* Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources output /E /IS /MOVE /NJH /NJS /NP
+      ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll Tomlet.dll Microsoft.*.dll settings*.* Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources output settings /E /IS /MOVE /NJH /NJS /NP
       exit 0
     </PostBuildEvent>
   </PropertyGroup>

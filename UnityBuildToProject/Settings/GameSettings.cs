@@ -20,7 +20,6 @@ public record GameSettings {
         var outputPath = Path.GetFullPath(
             Path.Combine(
                 Settings.FolderPath,
-                "..",
                 $"settings_game_{gameName}.toml"
             )
         );

@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace Nomnom {
     public static class InitProject {
+        
         public static void OnLoad() {
 #if FIX_INPUT_SYSTEM
                 FixInputSystemActions.Fix();

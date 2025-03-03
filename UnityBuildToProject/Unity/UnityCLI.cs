@@ -34,9 +34,10 @@ public static class UnityCLI {
             "-disable-assembly-updater",
             "-silent-crashes",
             "-batchmode",
+            "-nographics",
             "-logFile -", 
             .. args,
-            "-exit",
+            "-quit",
             "| Write-Output"
         ]);
     }

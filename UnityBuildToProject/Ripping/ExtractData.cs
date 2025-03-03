@@ -9,11 +9,31 @@ using Tomlet.Attributes;
 namespace Nomnom;
 
 public record ExtractData {
+    private const string ProjectName = "Project";
+    
     public required GameData GameData;
     public required LibraryConfiguration Config;
     
     public string GetProjectPath() {
-        return Path.Combine(Config.ProjectRootPath, "..", "TempProject");
+        return Path.Combine(Config.ProjectRootPath, "..", ProjectName);
+    }
+    
+    public async Task<string> CreateNewProject() {
+        var projectPath    = Config.ProjectRootPath;
+        var newProjectPath = GetProjectPath();
+        
+        // delete the old project across multiple tasks if possible
+        await Paths.DeleteDirectory(newProjectPath);
+        
+        Directory.CreateDirectory(newProjectPath);
+        Directory.CreateDirectory(Path.Combine(newProjectPath, "Assets"));
+        
+        await Utility.CopyFilesRecursivelyPretty(
+            Path.Combine(projectPath, "ProjectSettings"), 
+            Path.Combine(newProjectPath, "ProjectSettings")
+        );
+        
+        return newProjectPath;
     }
     
     public IEnumerable<string> GetSharedDlls(string secondProject) {

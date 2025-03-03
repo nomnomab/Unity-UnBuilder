@@ -1,7 +1,8 @@
 using System;
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
@@ -11,44 +12,233 @@ using Object = UnityEngine.Object;
 namespace Nomnom {
     public static class FixInputSystemActions {
         public static void Fix() {
+            // find importer guid
+            var importers = AssetDatabase.FindAssets("t:MonoScript, InputActionImporter");
+            if (!importers.Any()) {
+                Debug.LogWarning("No InputActionImporter.cs found");
+                return;
+            }
+            
+            var importerGuid = importers.First();
             var inputActions = AssetDatabase.FindAssets("t:InputActionAsset", new string[] {
                 "Assets"
             });
             
             foreach (var guid in inputActions) {
                 try {
-                    var assetPath            = AssetDatabase.GUIDToAssetPath(guid);
+                    var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                    var path      = Path.GetFullPath(assetPath);
+
+                    if (!path.EndsWith(".asset")) continue;
+                    
                     // ? need this otherwise unity won't load up all the input data :/
                     var inputActionAssetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
-                
                     var asset = AssetDatabase.LoadAssetAtPath(assetPath, inputActionAssetType);
-                    var clone = Object.Instantiate(asset);
+                    if (!AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out string assetGuidFrom, out long assetFileId)) {
+                        Debug.LogWarning("Failed to load guid and localid for " + path);
+                        continue;
+                    }
                     
-                    var path  = Path.GetFullPath(assetPath);
+                    var clone = Object.Instantiate(asset);
                     var text  = File.ReadAllText(path);
                     
                     clone.name = asset.name;
                     
                     var json    = Fix(clone);
                     
-                    // new file
-                    var newPath = Path.Combine(Path.GetDirectoryName(path), $"{Path.GetFileNameWithoutExtension(path)}.inputactions");
-                    File.WriteAllText(newPath, json);
+                    // replace contents
+                    File.WriteAllText(path, json);
+                    
+                    // rename
+                    var newPath = Path.ChangeExtension(path, ".inputactions");
+                    File.Move(path, newPath);
+                    File.Delete(path);
                     
                     // new meta
-                    var metaFile = path + ".meta";
-                    newPath = newPath + ".meta";
-                    File.Copy(metaFile, newPath, true);
+                    var metaFile    = path + ".meta";
+                    var metaText    = File.ReadAllText(metaFile);
+                    var guidText    = "guid: " + assetGuidFrom;
                     
-                    // delete old
-                    File.Delete(path);
+                    var newMetaPath = newPath + ".meta";
+//                     var newMetaText = @"fileFormatVersion: 2
+// #_GUID_
+// ScriptedImporter:
+//   internalIDToNameTable: []
+//   externalObjects: {}
+//   serializedVersion: 2
+//   userData: 
+//   assetBundleName: 
+//   assetBundleVariant: 
+//   script: {fileID: 11500000, guid: #_SCRIPT_, type: 3}
+//   generateWrapperCode: 0
+//   wrapperCodePath: 
+//   wrapperClassName: 
+//   wrapperCodeNamespace: "
+//                     .Replace("#_GUID_", guidText)
+//                     .Replace("#_SCRIPT_", importerGuid);
+                    
+                    Debug.Log($"{metaFile} to {newMetaPath}");
+                    // File.WriteAllText(metaFile, newMetaText);
+                    // File.Move(metaFile, newMetaPath);
                     File.Delete(metaFile);
                     
+                    AssetDatabase.Refresh();
+                    
+                    var newAssetPath = Path.ChangeExtension(assetPath, ".inputactions");
+                    AssetDatabase.ImportAsset(newAssetPath);
+                    AssetDatabase.Refresh();
+                    
+                    asset = AssetDatabase.LoadAssetAtPath(newAssetPath, inputActionAssetType);
+                    if (!AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out string assetGuidTo, out assetFileId)) {
+                        Debug.LogWarning("Failed to load guid and localid for " + path);
+                        continue;
+                    }
+                    
+                    // find in all assets in Assets/ and replace refs to this
+                    // with the proper fileID (assetFileId) and type (3)
+                    MigrateAsset(assetGuidFrom, assetGuidTo, assetFileId);
+
                     UnityEngine.Debug.Log("Fixed: " + assetPath);
                 } catch (Exception e) {
                     UnityEngine.Debug.LogError(e);
+                    throw;
                 }
             }
+            
+            EditorApplication.Exit(0);
+        }
+        
+        private static void MigrateAsset(string guidFrom, string guidTo, long fileID) {
+            var assets = AssetDatabase.FindAssets("", new string[] {
+                "Assets"
+            })
+                .Select(x => (x, AssetDatabase.GUIDToAssetPath(x)))
+                .Where(x => {
+                    try {
+                        var type = AssetDatabase.GetMainAssetTypeAtPath(x.Item2);
+                        if (type.IsAssignableFrom(typeof(GameObject))) {
+                            return true;
+                        }
+                        
+                        if (type.IsAssignableFrom(typeof(MonoScript))) {
+                            return true;
+                        }
+                        
+                        if (type.IsAssignableFrom(typeof(ScriptableObject))) {
+                            return true;
+                        }
+                    } catch {
+                        return false;
+                    }
+                    
+                    return false;
+                })
+                .Select(x => Path.GetFullPath(x.Item2))
+                .ToList();
+            
+            var assetsPath = Application.dataPath;
+            FindAdditionalFiles(Path.Combine(assetsPath, "MonoBehaviour") , assets);
+            FindAdditionalFiles(Path.Combine(assetsPath, "Resources")     , assets);
+            FindAdditionalFiles(Path.Combine(assetsPath, "XR")            , assets);
+            FindAdditionalFiles(Path.Combine(assetsPath, "Scenes")        , assets);
+            
+            // {fileID: 11400000, guid: 3a07699515236d44a810922ee55ef122, type: 3}
+            var from       = "{fileID: 11400000, guid: #_GUID_, type: 2}".Replace("#_GUID_", guidFrom);
+            var to         = "{" + string.Format("fileID: {0}, guid: {1}, type: 3", fileID, guidTo) + "}";
+            Debug.Log($"{from}\n{to}");
+            
+            EditorUtility.DisplayProgressBar("Checking assets", "", 0f);
+            for (int i = 0; i < assets.Count; i++) {
+                var t = i / (float)assets.Count;
+                var file = assets[i];
+                EditorUtility.DisplayProgressBar("Checking assets", file, t);
+                
+                var contents = File.ReadAllText(file);
+                if (contents.Contains(from)) {
+                    contents = contents.Replace(from, to);
+                    File.WriteAllText(file, contents);
+                }
+            }
+            EditorUtility.ClearProgressBar();
+        }
+        
+        private static string[] FindExcludeExtensions = new string[] {
+            ".meta",
+            ".txt",
+            ".csv",
+            // textures
+            ".psd",
+            ".tiff",
+            ".tga",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".bmp",
+            ".iff",
+            ".pict",
+            // audio
+            ".mp3",
+            ".ogg",
+            ".wav",
+            ".flac",
+            ".aiff",
+            ".aif",
+            ".mod",
+            ".it",
+            ".s3m",
+            ".xm",
+            // video
+            ".mp4",
+            ".asf",
+            ".avi",
+            ".dv",
+            ".m4v",
+            ".mov",
+            ".mpg",
+            ".mpeg",
+            ".ogv",
+            ".vp8",
+            ".webm",
+            ".wmv",
+        };
+        private static void FindAdditionalFiles(string path, List<string> paths) {
+            if (!Directory.Exists(path)) return;
+            
+            foreach (var file in Directory.GetFiles(path, "*.*", SearchOption.AllDirectories)) {
+                if (!paths.Contains(file)) {
+                    var extension = Path.GetExtension(file);
+                    if (FindExcludeExtensions.Contains(extension)) {
+                        continue;
+                    }
+                    
+                    paths.Add(file);
+                }
+            }
+        }
+        
+        private static string FindGuid(string text) {
+            var lines = text.Split('\n');
+            foreach (var line in lines) {
+                var l = line.Trim();
+                if (l.StartsWith("guid:")) {
+                    return line;
+                }
+            }
+            
+            return null;
+        }
+        
+        private static string FindScriptGuid(string text) {
+            var lines = text.Split('\n');
+            foreach (var line in lines) {
+                var l = line.Trim();
+                if (l.StartsWith("m_Script:")) {
+                    return line.TrimEnd().Replace("m_Script", "script");
+                }
+            }
+            
+            return null;
         }
         
         private static string Fix(UnityEngine.Object clone) {

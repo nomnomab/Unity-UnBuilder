@@ -27,7 +27,7 @@ namespace Nomnom {
                     foreach (var package in Request.Result) {
                         packages.Packages.Add(package);
                     }
-                    var path = Application.dataPath + "/../packages_output.json";
+                    var path = Path.Combine(Application.dataPath, "..", "..", "packages_output.json");
                     var json = JsonUtility.ToJson(packages, true);
                     File.WriteAllText(path, json);
                 } else if (Request.Status >= StatusCode.Failure) {

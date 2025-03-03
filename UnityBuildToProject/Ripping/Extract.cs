@@ -45,35 +45,53 @@ public static class Extract {
         return (config, gameData, exportHandler);
     }
     
-    public static async Task<ExtractData> ExtractAssets(AppSettings settings, BuildMetadata buildMetadata, ExtractPath extractPath) {
-        AnsiConsole.MarkupLine("[underline]Extracting assets...[/]");
-        
-        // log with the specific one below
-        Logger.Clear();
-        Logger.Add(new ExtractLogger());
+    public static async Task<ExtractData> ExtractAssets(ProgramArgs args, AppSettings settings, BuildMetadata buildMetadata, ExtractPath extractPath) {
+        if(!args.SkipAssetRipper) {
+            AnsiConsole.MarkupLine("[underline]Extracting assets...[/]");
+            
+            // log with the specific one below
+            Logger.Clear();
+            Logger.Add(new ExtractLogger());
+        }
         
         var (config, gameData, exportHandler) = ExtractGameData(settings.ExtractSettings, null, buildMetadata, true);
-        
-        PrintLibraryConfiguration(config, false);
-        
-        await Task.Delay(1000);
-        
-        // starts a thread to export with AssetRipper
-        // and waits for it to finish or fail
-        await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Aesthetic)
-            .StartAsync("Exporting...", 
-            async ctx => await WaitForAssetRipper(ctx, extractPath, exportHandler, gameData)
-        );
-        
-        Logger.Clear();
-        PrintLibraryConfiguration(config, false);
-        
-        // this holds the information about the build folder
-        return new ExtractData() {
+        var extractData = new ExtractData() {
             GameData = gameData,
             Config   = config
         };
+        
+        // trim .new files
+        var assetsFolder  = Path.Combine(extractData.GetProjectPath(), "Assets");
+        if (Directory.Exists(assetsFolder)) {
+            AnsiConsole.MarkupLine("[green]Cleaning[/] up old files...");
+            var priorNewFiles = Directory.GetFiles(assetsFolder, "*.new", SearchOption.AllDirectories);
+            foreach (var file in priorNewFiles) {
+                File.Delete(file);
+            }
+        }
+        
+        await Task.Delay(1000);
+        
+        if(!args.SkipAssetRipper) {
+            PrintLibraryConfiguration(config, false);
+            
+            // starts a thread to export with AssetRipper
+            // and waits for it to finish or fail
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Aesthetic)
+                .StartAsync("Exporting...", 
+                async ctx => await WaitForAssetRipper(ctx, extractPath, exportHandler, gameData)
+            );
+            
+            Logger.Clear();
+        } else {
+            extractData.Config.ExportRootPath = extractPath.folderPath;
+        }
+        
+        PrintLibraryConfiguration(config, false);
+        
+        // this holds the information about the build folder
+        return extractData;
     }
     
     // public static async Task DecompileShaders(BuildMetadata buildMetadata, ExtractPath extractPath) {

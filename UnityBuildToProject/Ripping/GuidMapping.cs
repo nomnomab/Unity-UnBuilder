@@ -4,15 +4,6 @@ namespace Nomnom;
 
 public static class GuidMapping {
     public static async Task<GuidDatabase> ExtractGuids(string projectPath) {
-        // await AnsiConsole.Status()
-        //     .Spinner(Spinner.Known.Aesthetic)
-        //     .StartAsync("Extracting guids from project", async ctx => {
-        //         db = GuidDatabase.Parse(projectPath);
-        //         AnsiConsole.MarkupLine($"Extracted guids from project.");
-                
-        //         await Task.Delay(1000);
-        //     });
-        
         Console.WriteLine("Extracting guids from project");
         var db = GuidDatabase.Parse(projectPath);
         Console.WriteLine("Extracted guids from project.");
@@ -29,7 +20,7 @@ public static class GuidMapping {
         var scriptsPath = Path.Combine(projectPath, "Assets", "Scripts");
         
         var dllNameNoExtension = dllName.EndsWith(".dll") ? Path.GetFileNameWithoutExtension(dllName) : dllName;
-        var dllPath           = Path.Combine(scriptsPath, dllNameNoExtension);
+        var dllPath            = Path.Combine(scriptsPath, dllNameNoExtension);
         if (!Directory.Exists(dllPath)) {
             return null;
         }

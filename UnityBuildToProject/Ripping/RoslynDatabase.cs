@@ -1,3 +1,4 @@
+
 namespace Nomnom;
 
 public record RoslynDatabase {
@@ -13,24 +14,30 @@ public record RoslynDatabase {
             .Where(x => !x.EndsWith(".gen.cs"));
         var namespacePartsCache = new List<string>(capacity: 128);
         var types               = new List<string>(capacity: 1024);
+        
+        // todo: split into multiple tasks
         foreach (var script in allScripts) {
-            Console.WriteLine($"Parsing \"{Utility.ClampPathFolders(script, 4)}\"...");
+            Console.WriteLine($"Parsing \"{Utility.ClampPathFolders(script, 6)}\"...");
             
             try {
                 await RoslynUtility.ParseTypesFromFile(script, namespacePartsCache, types);
             } catch {
-                Console.WriteLine(" - Failed to parse");
+                Console.WriteLine($"Failed to parse \"{Utility.ClampPathFolders(script, 6)}\"");
                 types.Clear();
                 continue;
             }
             
+            // if (types.Count == 0) {
+            //     Console.WriteLine($" - no types");
+            // }
+            
             foreach (var type in types) {
-                // Console.WriteLine($"Found type \"{type}\"");
+                // Console.WriteLine($" - found type \"{type}\"");
                 
                 if (!db.FullNameToFilePath.TryAdd(type, script)) {
                     var existing = db.FullNameToFilePath[type];
                     // throw new Exception($"\"{type}\" already exists in the database.\nexisting: \"{existing}\"\nattempted: \"{script}\"");
-                    Console.WriteLine($"\"{type}\" already exists in the database.\nexisting: \"{existing}\"\nattempted: \"{script}\"");
+                    Console.WriteLine($" - \"{type}\" already exists in the database.\nexisting: \"{existing}\"\nattempted: \"{script}\"");
                 }
             }
             types.Clear();
@@ -47,13 +54,20 @@ public record RoslynDatabase {
     public IEnumerable<RoslynDatabaseMerge> GetMergeUnion(RoslynDatabase[] databases) {
         // find the scripts that are in this database and any of the provided ones
         foreach (var (fullName, filePathFrom) in FullNameToFilePath) {
+            // Console.WriteLine($"Checking dbs for {fullName} + {filePathFrom}");
+            
             foreach (var db in databases) {
                 if (!db.FullNameToFilePath.TryGetValue(fullName, out var filePathTo)) {
+                    // Console.WriteLine($" - not in idx db");
                     continue;
                 }
                 
-                if (filePathFrom == filePathTo) continue;
+                if (filePathFrom == filePathTo) {
+                    // Console.WriteLine($" - {filePathFrom} == {filePathTo}");
+                    continue;
+                }
 
+                // Console.WriteLine($" - merge:\nfrom: {filePathFrom}\nto: {filePathTo}");
                 yield return new RoslynDatabaseMerge(this, db, filePathFrom, filePathTo);
             }
         }
@@ -68,7 +82,12 @@ public record RoslynDatabase {
         var fromGuids = new HashSet<UnityGuid>(capacity: 1024);
         
         foreach (var merge in merges) {
-            if (!guidDb.FilePathToGuid.TryGetValue(merge.FilePathFrom, out var guidFrom)) continue;
+            // Console.WriteLine($"checking merge\n{merge}");
+            
+            if (!guidDb.FilePathToGuid.TryGetValue(merge.FilePathFrom, out var guidFrom)) {
+                // Console.WriteLine($"No guid for \"{Utility.ClampPathFolders(merge.FilePathFrom, 6)}\"");
+                continue;
+            }
             
             UnityGuid? guidTo = null;
             for (int i = 1; i < guidDatabases.Length; i++) {
@@ -78,18 +97,17 @@ public record RoslynDatabase {
                 }
             }
             
-            if (guidTo == null) continue;
+            if (guidTo == null) {
+                // Console.WriteLine($"No guidTo for \"{Utility.ClampPathFolders(merge.FilePathTo, 6)}\"");
+                continue;
+            }
             if (guidFrom == guidTo) continue;
             
             if (!fromGuids.Add(guidFrom)) {
-                // var existing = toReplace.First(x => x.GuidFrom == guidFrom);
-                
                 // if it is the same file name, just ignore this
                 // can be from a different root project
                 // todo: handle this better?
                 continue;
-                
-                // throw new Exception($"Tried to add guid {guidFrom} again:\n - in list: {existing}\n - new: {merge}");
             }
             
             // override!
@@ -119,6 +137,19 @@ public record RoslynDatabase {
         
         Console.WriteLine($"{toReplace.Count} to replace");
         GuidDatabase.ReplaceGuids(toReplace, guidDatabases);
+    }
+
+    public void WriteToDisk(string name) {
+        File.Delete(name);
+
+        using var writer = new StreamWriter(name);
+        
+        writer.WriteLine("Assets:");
+        writer.WriteLine("---------------");
+        foreach (var (guid, asset) in FullNameToFilePath) {
+            var filePath = Utility.ClampPathFolders(asset, 6);
+            writer.WriteLine($"[{guid}] {filePath}");
+        }
     }
 }
 

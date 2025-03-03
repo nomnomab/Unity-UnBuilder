@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -7,29 +8,27 @@ using Spectre.Console;
 
 namespace Nomnom;
 
-public static class RoslynUtility {
+public static partial class RoslynUtility {
     private static readonly CSharpParseOptions ParseOptions = CSharpParseOptions.Default
         .WithKind(SourceCodeKind.Regular)
-        .WithDocumentationMode(DocumentationMode.None)
-        .WithPreprocessorSymbols(null)
-        .WithLanguageVersion(LanguageVersion.CSharp9);
+        .WithDocumentationMode(DocumentationMode.None);
+        // .WithPreprocessorSymbols(null);
+        // .WithLanguageVersion(LanguageVersion.CSharp9);
+        
+    private static readonly Regex RemovePreprocessDefinesRegex = GetRemovePreprocessDefinesRegex();
     
     public static async Task<RoslynDatabase> ExtractTypes(string projectPath) {
         RoslynDatabase? db = null;
         
-        await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Aesthetic)
-            .StartAsync("Extracting types from project", async ctx => {
-                try {
-                    db = await RoslynDatabase.Parse(projectPath);
-                } catch {
-                    Console.WriteLine("Encountered an error");
-                    throw;
-                }
-                AnsiConsole.MarkupLine($"Extracted types from project.");
-                
-                await Task.Delay(1000);
-            });
+        try {
+            db = await RoslynDatabase.Parse(projectPath);
+        } catch {
+            Console.WriteLine("Encountered an error");
+            throw;
+        }
+        AnsiConsole.MarkupLine($"Extracted types from project.");
+        
+        await Task.Delay(1000);
         
         if (db == null) {
             throw new Exception("Failed to parse type database");
@@ -59,7 +58,7 @@ public static class RoslynUtility {
                 throw task.Exception;
             }
             
-            await Task.Delay(5);
+            await Task.Yield();
         }
     }
     
@@ -70,16 +69,19 @@ public static class RoslynUtility {
         }
         
         using var reader = new StreamReader(filePath);
-        var sourceText   = SourceText.From(reader.BaseStream);
+        var text         = reader.ReadToEnd();
+        text             = RemovePreprocessDefinesRegex.Replace(text, string.Empty);
+        // var sourceText   = SourceText.From(reader.BaseStream);
+        var sourceText   = SourceText.From(text);
         var tree         = CSharpSyntaxTree.ParseText(sourceText, ParseOptions, path: filePath);
         var root         = tree.GetRoot();
         
-        // Console.WriteLine($"Getting types for {Utility.ClampPathFolders(filePath, 4)}");
         var types        = root.DescendantNodes()
             .OfType<BaseTypeDeclarationSyntax>();
         
         foreach (var type in types) {
             var name = GetFullyQualifiedName(type, namespacePartsCache);
+            // Console.WriteLine($" - name: {name}");
             
             // only cares about Mono-esque types where it inherits
             // and matches the file name
@@ -95,9 +97,13 @@ public static class RoslynUtility {
                     continue;
                 }
             }
-            
+           
             yield return name;
         }
+        
+        // if (!types.Any()) {
+        //      Console.WriteLine(" - no types found");
+        // }
     }
     
     private static bool IsPartialType(BaseTypeDeclarationSyntax type) {
@@ -139,4 +145,7 @@ public static class RoslynUtility {
 
         return string.Join(".", namespacePartsCache);
     }
+
+    [GeneratedRegex(@"^\s*#.*$", RegexOptions.Multiline)]
+    private static partial Regex GetRemovePreprocessDefinesRegex();
 }
