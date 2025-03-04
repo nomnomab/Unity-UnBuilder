@@ -7,6 +7,11 @@ public static class MergeAssets {
     /// </summary>
     public static IEnumerable<GuidDatabaseMerge> Merge(string projectPath, GuidDatabase guidDb, RoslynDatabase typeDb) {
         // shaders
+        return MergeShaders(guidDb, typeDb);
+            // .Concat(MergeAnimationClips(guidDb));
+    }
+    
+    private static IEnumerable<GuidDatabaseMerge> MergeShaders(GuidDatabase guidDb, RoslynDatabase typeDb) {
         foreach (var (name, paths) in typeDb.ShaderNameToFilePaths) {
             Console.WriteLine($"shader: {name}");
             
@@ -41,4 +46,8 @@ public static class MergeAssets {
             }
         }
     }
+    
+    // private static IEnumerable<GuidDatabaseMerge> MergeAnimationClips(GuidDatabase guidDb) {
+    //     yield break;
+    // }
 }

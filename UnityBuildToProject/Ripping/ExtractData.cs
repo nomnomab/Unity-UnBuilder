@@ -11,11 +11,12 @@ namespace Nomnom;
 public record ExtractData {
     private const string ProjectName = "Project";
     
+    public required string GameName;
     public required GameData GameData;
     public required LibraryConfiguration Config;
     
     public string GetProjectPath() {
-        return Path.Combine(Config.ProjectRootPath, "..", ProjectName);
+        return Path.Combine(Config.ProjectRootPath, "..", $"{GameName}_{ProjectName}");
     }
     
     public async Task<string> CreateNewProject(ProgramArgs args) {

@@ -52,10 +52,10 @@ public static class Paths {
     
     public static async Task DeleteDirectory(string path, string[]? excludeFolders = null) {
         if (!Directory.Exists(path)) {
-            return;
+            throw new DirectoryNotFoundException(path);
         }
         
-        AnsiConsole.MarkupLine("[red]Deleting[/] previous project. This will take a while!");
+        AnsiConsole.MarkupLine("[red]Deleting[/] files. This may take a while!");
         foreach (var exclude in excludeFolders ?? []) {
             Console.WriteLine($" - excluding: {exclude}");
         }
@@ -75,7 +75,7 @@ public static class Paths {
                     .ForAll(x => x.Delete());
                 
                 Directory.Delete(rootPath, true);
-                AnsiConsole.MarkupLine($"[green]Finished[/] with {shorter}!");
+                AnsiConsole.MarkupLine($"[green]Finished[/] with {shorter}");
             }));
         }
         

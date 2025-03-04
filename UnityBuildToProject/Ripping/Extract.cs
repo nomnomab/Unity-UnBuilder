@@ -56,6 +56,7 @@ public static class Extract {
         
         var (config, gameData, exportHandler) = ExtractGameData(settings.ExtractSettings, null, buildMetadata, true);
         var extractData = new ExtractData() {
+            GameName = buildMetadata.GetName(),
             GameData = gameData,
             Config   = config
         };
@@ -118,8 +119,20 @@ public static class Extract {
     // }
     
     static async Task WaitForAssetRipper(StatusContext ctx, ExtractPath extractPath, ExportHandler exportHandler, GameData gameData) {
-        var task = Task.Run(() => {
+        var task = Task.Run(async () => {
             var outputPath = extractPath.folderPath;
+            
+            // remove the previous rip
+            var dllsPath = Path.Combine(outputPath, "AuxiliaryFiles");
+            if (Directory.Exists(dllsPath)) {
+                await Paths.DeleteDirectory(dllsPath);
+            }
+            
+            var exportPath = Path.Combine(outputPath, "ExportedProject");
+            if (Directory.Exists(exportPath)) {
+                await Paths.DeleteDirectory(exportPath);
+            }
+            
             exportHandler.Export(gameData, outputPath);
         });
         

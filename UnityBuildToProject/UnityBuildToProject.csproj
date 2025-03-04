@@ -32,7 +32,7 @@
     <PreBuildEvent>
       rmdir /s /q "$(TargetDir)lib"
       <!-- rmdir /s /q "$(TargetDir)output" -->
-      <!-- rmdir /s /q "$(TargetDir)logs" -->
+      rmdir /s /q "$(TargetDir)logs"
       exit 0
     </PreBuildEvent>
   </PropertyGroup>

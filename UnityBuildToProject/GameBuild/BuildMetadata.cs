@@ -120,4 +120,8 @@ public record BuildMetadata {
             UnityVersion = unityVersion
         };
     }
+    
+    public string GetName() {
+        return System.IO.Path.GetFileNameWithoutExtension(Path.exePath);
+    }
 }

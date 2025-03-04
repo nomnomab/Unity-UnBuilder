@@ -12,6 +12,7 @@ public static class LogFile {
     }
     
     public static void Close() {
+        _writer?.Flush();
         _writer?.Dispose();
         _writer = null;
     }
@@ -38,7 +39,7 @@ partial class LogFileWriter : TextWriter {
     private const string NAME = "tool.log";
     private static string Path => System.IO.Path.Combine(Paths.LogsFolder, NAME);
     
-    private static readonly Regex _bracketRegex = BracketRegex();
+    // private static readonly Regex _bracketRegex = BracketRegex();
     
     private readonly TextWriter _out;
     private readonly TextWriter _log;
@@ -62,17 +63,25 @@ partial class LogFileWriter : TextWriter {
     public override void Write(char value) {
         _out.Write(value);
         _log.Write(value);
+        
+        if (Profiling.CurrentWriter is {} stageWriter) {
+            stageWriter.Write(value);
+        }
     }
     
     public override void Write(string? value) {
-        var text = _bracketRegex.Replace(value ?? string.Empty, string.Empty);
+        // var text = _bracketRegex.Replace(value ?? string.Empty, string.Empty);
         
         _out.Write(value);
-        _log.Write(text);
+        _log.Write(value);
+        
+        if (Profiling.CurrentWriter is {} stageWriter) {
+            stageWriter.Write(value);
+        }
     }
 
-    public override Encoding Encoding => throw new NotImplementedException();
+    public override Encoding Encoding => Encoding.UTF8;
 
-    [GeneratedRegex(@"\[.*?\]", RegexOptions.Compiled)]
-    private static partial Regex BracketRegex();
+    // [GeneratedRegex(@"\[.*?\]", RegexOptions.Compiled)]
+    // private static partial Regex BracketRegex();
 }

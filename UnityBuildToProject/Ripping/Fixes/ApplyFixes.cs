@@ -1,10 +1,16 @@
 namespace Nomnom;
 
 public static class ApplyFixes {
+    public static async Task FixBeforeGuids(AppSettings appSettings, GameSettings gameSettings, ExtractData extractData, PackageTree packageTree, UnityPath unityPath) {
+        await FixTextMeshPro(extractData, unityPath);
+    }
+    
     public static async Task FixAll(AppSettings appSettings, GameSettings gameSettings, ExtractData extractData, PackageTree packageTree, UnityPath unityPath) {
         if (packageTree.Find("com.unity.inputsystem") != null) {
             await FixInputSystemActions(extractData, unityPath);
         }
+        
+        ParseTextFiles(extractData);
         
         await Task.Delay(500);
     }
@@ -42,5 +48,32 @@ public static class ApplyFixes {
         );
         
         File.Delete(file);
+    }
+    
+    public static void ParseTextFiles(ExtractData extractData) {
+        var projectPath = extractData.GetProjectPath();
+        var assetsPath  = Path.Combine(projectPath, "Assets");
+        var txtFiles    = Directory.GetFiles(assetsPath, "*.txt", SearchOption.AllDirectories);
+        
+        foreach (var file in txtFiles) {
+            Console.WriteLine($"Decoding {Utility.ClampPathFolders(file, 6)}");
+
+            var lines = File.ReadAllLines(file);
+            if (lines.Length == 0) continue;
+
+            // todo: make this better
+            // check for a .txt -> .csv
+            var line = lines[0];
+            if (!line.Contains(',')) continue;
+            
+            var csvPath = Path.ChangeExtension(file, ".csv");
+            File.Move(file, csvPath, true);
+
+            var metaPath = file + ".meta";
+            if (File.Exists(metaPath)) {
+                var metaCsvPath = csvPath + ".meta";
+                File.Move(metaPath, metaCsvPath, true);
+            }
+        }
     }
 }

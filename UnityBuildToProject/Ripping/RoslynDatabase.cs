@@ -112,7 +112,7 @@ public record RoslynDatabase {
         var toReplace = new HashSet<GuidDatabaseMerge>(capacity: 512);
         var fromGuids = new HashSet<UnityGuid>(capacity: 1024);
         
-        var logFile = Path.Combine(Paths.LogsFolder, "write_log.log");
+        var logFile = Path.Combine(Paths.LogsFolder, "merge_into.log");
         File.Delete(logFile);
         using (var writer = new StreamWriter(logFile)) {
             foreach (var merge in merges) {
