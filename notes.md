@@ -50,8 +50,14 @@ The main goal of this project is to make a better version of my prior build->pro
     [x] Proper json data
     [x] New action asset isn't properly being inserted
         Thinks it is corrupted or an old version
-[ ] Map generated shaders to existing shaders in the project
+[x] Map generated shaders to existing shaders in the project
     Such as Unity standard shaders
+    [x] Parse shader names for files
+    [x] Map shader guid to ones that exist in the project first
+        Nuke the rest
+    ~~[x] Duplicate shaders next to each other need to be removed~~
+    [x] Properly merge same shaders together into the same file + guid
 [x] InputSystemUIInputModule fails to fix guid
     Something wrong with the package itself?
 [x] TextMeshPro needs to import the "essentials" unitypackage
+[x] Figure out what is duplicating assets :/

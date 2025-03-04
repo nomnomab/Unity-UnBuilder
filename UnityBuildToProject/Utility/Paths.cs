@@ -50,20 +50,32 @@ public static class Paths {
         Directory.CreateDirectory(path);
     }
     
-    public static async Task DeleteDirectory(string path) {
+    public static async Task DeleteDirectory(string path, string[]? excludeFolders = null) {
         if (!Directory.Exists(path)) {
             return;
         }
         
         AnsiConsole.MarkupLine("[red]Deleting[/] previous project. This will take a while!");
+        foreach (var exclude in excludeFolders ?? []) {
+            Console.WriteLine($" - excluding: {exclude}");
+        }
         
-        var roots = Directory.GetDirectories(path, "*", SearchOption.TopDirectoryOnly);
+        var roots = Directory.GetDirectories(path, "*", SearchOption.TopDirectoryOnly)
+            .Where(x => excludeFolders == null || !excludeFolders.Contains(Path.GetFileName(x)));
         var tasks = new List<Task>();
         foreach (var root in roots) {
-            var rootPath = root;
+            var rootPath = Path.GetFullPath(root);
             tasks.Add(Task.Run(() => {
+                var shorter = Utility.ClampPathFolders(rootPath, 6);
+                var dirInfo = new DirectoryInfo(rootPath);
+                var files   = dirInfo.GetFiles("*.*", SearchOption.AllDirectories);
+                
+                AnsiConsole.MarkupLine($"[red]Deleting[/] {files.Length} file(s) for {shorter}...");
+                files.AsParallel()
+                    .ForAll(x => x.Delete());
+                
                 Directory.Delete(rootPath, true);
-                AnsiConsole.MarkupLine($" - {Utility.ClampPathFolders(rootPath, 4)} is done");
+                AnsiConsole.MarkupLine($"[green]Finished[/] with {shorter}!");
             }));
         }
         
@@ -72,6 +84,8 @@ public static class Paths {
         await Task.WhenAll(tasks);
         
         // final deletion pass to make sure the entire path is gone
-        Directory.Delete(path, true);
+        if (excludeFolders == null) {
+            Directory.Delete(path, true);
+        }
     }
 }

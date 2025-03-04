@@ -18,20 +18,31 @@ public record ExtractData {
         return Path.Combine(Config.ProjectRootPath, "..", ProjectName);
     }
     
-    public async Task<string> CreateNewProject() {
-        var projectPath    = Config.ProjectRootPath;
-        var newProjectPath = GetProjectPath();
+    public async Task<string> CreateNewProject(ProgramArgs args) {
+        var projectPath     = Config.ProjectRootPath;
+        var newProjectPath  = GetProjectPath();
         
         // delete the old project across multiple tasks if possible
-        await Paths.DeleteDirectory(newProjectPath);
+        if (!args.SkipPackageAll) {
+            await Paths.DeleteDirectory(newProjectPath);
+        } else {
+            await Paths.DeleteDirectory(newProjectPath, excludeFolders: [
+                "Packages",
+                "Library",
+                "ProjectSettings",
+                "UserSettings"
+            ]);
+        }
         
         Directory.CreateDirectory(newProjectPath);
         Directory.CreateDirectory(Path.Combine(newProjectPath, "Assets"));
         
-        await Utility.CopyFilesRecursivelyPretty(
-            Path.Combine(projectPath, "ProjectSettings"), 
-            Path.Combine(newProjectPath, "ProjectSettings")
-        );
+        if (!args.SkipPackageAll) {
+            await Utility.CopyFilesRecursivelyPretty(
+                Path.Combine(projectPath, "ProjectSettings"), 
+                Path.Combine(newProjectPath, "ProjectSettings")
+            );
+        }
         
         return newProjectPath;
     }
@@ -53,7 +64,7 @@ public record ExtractData {
         return firstDlls.Union(secondDlls);
     }
     
-    public async Task CopyAssetsToProject(string secondProject, bool testFoldersOnly) {
+    public async Task CopyAssetsToProject(string secondProject, HashSet<string> fileBlacklist, bool testFoldersOnly) {
         var firstPath  = Config.AssetsPath;
         var secondPath = Path.Combine(secondProject, "Assets");
         
@@ -88,16 +99,21 @@ public record ExtractData {
                 
                 await Utility.CopyAssets(
                     Path.Combine(firstPath, folder), 
-                    Path.Combine(secondPath, folder)
+                    Path.Combine(secondPath, folder),
+                    fileBlacklist
                 );
                 await Task.Delay(50);
             }
         } else {
-            await Utility.CopyAssets(firstPath, secondPath);
+            await Utility.CopyAssets(firstPath, secondPath, fileBlacklist);
         }
             
         AnsiConsole.MarkupLine("[green]Finished[/] copying folders to the temp project!");
     }
+    
+    // public static void DeduplicateAssets(string projectPath) {
+    //     // for now just do shaders
+    // }
     
     public static void RemoveExistingPackageFoldersFromProjectScripts(GameSettings gameSettings, string projectPath) {
         AnsiConsole.MarkupLine($"[red]Deleting[/] existing package folders from \"{projectPath}\"");

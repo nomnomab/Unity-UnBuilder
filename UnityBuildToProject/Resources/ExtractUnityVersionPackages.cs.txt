@@ -28,6 +28,8 @@ namespace Nomnom {
                         packages.Packages.Add(package);
                     }
                     var path = Path.Combine(Application.dataPath, "..", "..", "packages_output.json");
+                    Debug.Log("Writing json to " + path);
+                    
                     var json = JsonUtility.ToJson(packages, true);
                     File.WriteAllText(path, json);
                 } else if (Request.Status >= StatusCode.Failure) {

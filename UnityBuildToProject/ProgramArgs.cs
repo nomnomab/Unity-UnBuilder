@@ -9,8 +9,11 @@ public class ProgramArgs {
     [Option('s', "skip_ar", HelpText = "Skips the AssetRipper stage. Useful if you already exported the project.")]
     public bool SkipAssetRipper { get; set; }
     
-    [Option('s', "skip_pack", HelpText = "Skips the package fetching stage. Useful if you already got the package list.")]
+    [Option('s', "skip_pack_fetch", HelpText = "Skips the package fetching stage. Useful if you already got the package list.")]
     public bool SkipPackageFetching { get; set; }
+    
+    [Option('s', "skip_pack_all", HelpText = "Skips the package fetching and install stage. Useful if you already got the package list.")]
+    public bool SkipPackageAll { get; set; }
 }
 
 public class ProgramArgsParser {

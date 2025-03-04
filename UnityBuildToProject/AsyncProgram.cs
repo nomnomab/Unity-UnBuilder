@@ -12,6 +12,10 @@ public static class AsyncProgram {
             .WithParsed(o => {
                 Console.Clear();
                 
+                if (o.SkipPackageAll) {
+                    o.SkipPackageFetching = true;
+                }
+                
                 var tree = new Tree("Unity Build to Project");
                 tree.AddNode( "version  : 0.0.1");
                 tree.AddNode($"game path: \"{o.GameExecutablePath}\"");
@@ -67,13 +71,15 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         // fetch the unity install path for later
         var unityInstall     = UnityPath.FromVersion(unityInstalls, gameData.ProjectVersion.ToString());
         var extractData      = await Extract.ExtractAssets(args, settings, buildMeta, extractPath);
+        RoslynDatabase.RemoveAllNewFiles(extractData.Config.ProjectRootPath);
         
         profileDuration.Record("Extracting assets");
         LogFile.Header("Getting packages");
         
         // fetch the project package list for the unity version
         var packageDetection = new PackageDetection(extractData);
-        var packages         = await packageDetection.GetPackagesFromVersion(unityInstall);
+        var newProjectPath   = await extractData.CreateNewProject(args);
+        var packages         = await packageDetection.GetPackagesFromVersion(args, newProjectPath, unityInstall);
         
         profileDuration.Record("Getting packages");
         
@@ -90,7 +96,7 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         LogFile.Header("Importing packages");
         
         // now import the packages
-        await packageDetection.ImportPackages(unityInstall, packageTree);
+        await packageDetection.ImportPackages(args, unityInstall, packageTree);
         profileDuration.Record("Importing packages");
         
         await ApplyFixes.FixTextMeshPro(extractData, unityInstall);
@@ -119,14 +125,25 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         profileDuration.Record("Extracting types for built-In packages");
         
         // merge all of the types into the AssetRipper project
-        RoslynDatabase.MergeInto(
+        var merge = MergeAssets.Merge(extractData.Config.ProjectRootPath, extractDb, extractTypes);
+        var guidsReplaced = RoslynDatabase.MergeInto(
             [extractDb, projectDb, builtinDb],
-            [extractTypes, projectTypes, builtInTypes]
+            [extractTypes, projectTypes, builtInTypes],
+            [.. merge]
         );
+        var exclusionFiles = RoslynDatabase.GetExclusionFiles(guidsReplaced, extractDb, extractTypes);
+        foreach (var m in merge) {
+            if (extractDb.AssociatedFilePaths.TryGetValue(m.GuidFrom, out var paths)) {
+                foreach (var path in paths) {
+                    exclusionFiles.Add(path);
+                }
+            }
+        }
         profileDuration.Record("Merging guids");
         
         // copy over the project assets once processed
-        await extractData.CopyAssetsToProject(extractData.GetProjectPath(), testFoldersOnly: false);
+        await extractData.CopyAssetsToProject(extractData.GetProjectPath(), exclusionFiles, testFoldersOnly: false);
+        RoslynDatabase.RemoveAllNewFiles(extractData.Config.ProjectRootPath);
         
         // tidy up the project folders
         ExtractData.RemoveEditorFolderFromProject(extractData.GetProjectPath());
@@ -144,8 +161,7 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         // await UnityCLI.OpenProjectHidden("Opening project to disable compressing", unityInstall, true, extractData.GetProjectPath(),
         //     "-executeMethod Nomnom.RecompileUnity.DisableCompress"
         // );
-        
-        // force a recompile
+       
         await UnityCLI.OpenProjectHidden("Opening project to recompile", unityInstall, true, extractData.GetProjectPath(),
             "-executeMethod Nomnom.RecompileUnity.OnLoad"
         );

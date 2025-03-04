@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Spectre.Console;
 
 namespace Nomnom;
@@ -12,15 +13,21 @@ public record GuidDatabase {
     
     public static GuidDatabase Parse(string folderPath) {
         var db = new GuidDatabase() {
-            Assets = [],
-            FilePathToGuid = [],
+            Assets              = [],
+            FilePathToGuid      = [],
             AssociatedFilePaths = [],
         };
         
-        var files = GetFiles(folderPath);
-        foreach (var file in files) {
+        // todo: split into tasks
+        
+        var files                 = GetFiles(folderPath);
+        var dbAssets              = new ConcurrentDictionary<UnityGuid, AssetFile>();
+        var dbFilePathToGuid      = new ConcurrentDictionary<string, UnityGuid>();
+        var dbAssociatedFilePaths = new ConcurrentDictionary<UnityGuid, ConcurrentBag<string>>();
+        
+        Parallel.ForEach(files, file => {
             var extension = Path.GetExtension(file);
-            if (extension == null) continue;
+            if (extension == null) return;
 
             var clampedFile = Utility.ClampPathFolders(file, 6);
             Console.WriteLine($"Checking guids for {clampedFile}");
@@ -30,16 +37,16 @@ public record GuidDatabase {
                     // parse meta file
                     var assetFile = file[..^".meta".Length];
                     
-                    if (!db.FilePathToGuid.ContainsKey(assetFile)) {
+                    if (!dbFilePathToGuid.ContainsKey(assetFile)) {
                         var metaFile = UnityAssetTypes.ParseMetaFile(file);
                         if (metaFile == null) {
                             // Console.WriteLine($" - no metaFile");
-                            continue;
+                            return;
                         }
                         
-                        db.FilePathToGuid.TryAdd(assetFile, metaFile.Guid);
-                        db.AddAssociatedGuid(metaFile.Guid, assetFile);
-                        db.AddAssociatedGuid(metaFile.Guid, file);
+                        dbFilePathToGuid.TryAdd(assetFile, metaFile.Guid);
+                        addAssociatedGuid(metaFile.Guid, assetFile);
+                        addAssociatedGuid(metaFile.Guid, file);
                         
                         // Console.WriteLine($" - {metaFile.Guid}::meta:\n - {assetFile}\n - {file}");
                     }
@@ -68,35 +75,51 @@ public record GuidDatabase {
                     // needs a meta file for a guid
                     if (metaFile == null) {
                         // Console.WriteLine($" - no metaFile");
-                        continue;
+                        return;
                     }
                 
                     var assetFile = UnityAssetTypes.ParseAssetFile(file);
                     if (assetFile == null) {
                         // Console.WriteLine($" - no assetFile");
-                        continue;
+                        return;
                     }
                     
                     // attach to asset file path + guid
-                    db.Assets.TryAdd(metaFile.Guid, assetFile);
-                    db.FilePathToGuid.TryAdd(assetFile.FilePath, metaFile.Guid);
-                    db.AddAssociatedGuid(metaFile.Guid, assetFile.FilePath);
-                    db.AddAssociatedGuid(metaFile.Guid, metaFilePath);
+                    dbAssets.TryAdd(metaFile.Guid, assetFile);
+                    dbFilePathToGuid.TryAdd(assetFile.FilePath, metaFile.Guid);
+                    addAssociatedGuid(metaFile.Guid, assetFile.FilePath);
+                    addAssociatedGuid(metaFile.Guid, metaFilePath);
                     
                     // Console.WriteLine($" - {metaFile.Guid}::asset:\n - {assetFile}\n - {assetFile.FilePath}\n - {metaFilePath}");
                     
-                    // foreach (var obj in assetFile.Objects) {
-                    //     foreach (var reference in obj.AssetReferences) {
-                    //         db.AddAssociatedGuid(reference.Guid, assetFile.FilePath);
-                    //         Console.WriteLine($"     - {reference}");
-                    //     }
-                    // }
+                    foreach (var obj in assetFile.Objects) {
+                        foreach (var reference in obj.AssetReferences) {
+                            addAssociatedGuid(reference.Guid, assetFile.FilePath);
+                            // Console.WriteLine($"     - {reference}");
+                        }
+                    }
                 }
                 break;
             }
-        }
+        });
+        
+        db.Assets              = dbAssets.ToDictionary();
+        db.FilePathToGuid      = dbFilePathToGuid.ToDictionary();
+        db.AssociatedFilePaths = dbAssociatedFilePaths.ToDictionary(
+            x => x.Key,
+            x => x.Value.ToHashSet()
+        );
         
         return db;
+        
+        void addAssociatedGuid(UnityGuid guid, string filePath) {
+            if (!dbAssociatedFilePaths.TryGetValue(guid, out ConcurrentBag<string>? value)) {
+                dbAssociatedFilePaths.TryAdd(guid, [filePath]);
+                return;
+            }
+
+            value.Add(filePath);
+        }
     }
     
     public void AddAssociatedGuid(UnityGuid guid, string filePath) {
@@ -135,7 +158,7 @@ public record GuidDatabase {
     /// <summary>
     /// Go through each file mapping and write its guid back to disk.
     /// </summary>
-    public static void ReplaceGuids(IEnumerable<GuidDatabaseMerge> merge, GuidDatabase[] databases) {
+    public static IEnumerable<UnityGuid> ReplaceGuids(IEnumerable<GuidDatabaseMerge> merge, GuidDatabase[] databases) {
         var logPath = Path.Combine(Paths.LogsFolder, "replace_guids.log");
         File.Delete(logPath);
         using var writer = new StreamWriter(logPath);
@@ -165,9 +188,10 @@ public record GuidDatabase {
                 continue;
             }
             
-            // Console.WriteLine($"Replacing {m.GuidFrom} with {m.GuidTo}");
+            Console.WriteLine($"Replacing {m.GuidFrom} with {m.GuidTo}");
             foreach (var filePath in filePaths) {
                 // Console.WriteLine($" - {filePath}");
+                writer.WriteLine($" - {filePath}");
                 if (!files.TryGetValue(filePath, out var list)) {
                     files.Add(filePath, []);
                     list = files[filePath];
@@ -188,6 +212,11 @@ public record GuidDatabase {
                 case ".meta": {
                     // meta file
                     ReplaceGuidInFile(file, list, writer);
+                    // yield return file;
+                    
+                    foreach (var entry in list) {
+                        yield return entry.GuidFrom;
+                    }
                 }
                 break;
                 
@@ -199,11 +228,25 @@ public record GuidDatabase {
                         continue;
                     }
                     
-                    var asset = databases.Where(x => x.Assets.ContainsKey(guid))
-                        .Select(x => x.Assets[guid])
+                    var db = databases.Where(x => x.Assets.ContainsKey(guid))
                         .FirstOrDefault();
-                        
+                    if (db == null) {
+                        continue;
+                    }
+                    
+                    var asset = db.Assets[guid];
                     if (asset == null) {
+                        // edge case extensions
+                        if (extension == ".shader") {
+                            ReplaceGuidInFile(file, list, writer);
+                            
+                            foreach (var entry in list) {
+                                yield return entry.GuidFrom;
+                            }
+                            
+                            continue;
+                        }
+                        
                         // Console.WriteLine($" - no asset for {guid}");
                         writer.WriteLine($" - no asset for {guid}");
                         continue;
@@ -229,6 +272,11 @@ public record GuidDatabase {
                     }
                     
                     ReplaceGuidInFile(file, list, writer);
+                    // yield return asset.FilePath;
+                    
+                    foreach (var entry in list) {
+                        yield return entry.GuidFrom;
+                    }
                 }
                 break;
             }
@@ -239,20 +287,27 @@ public record GuidDatabase {
         File.Delete($"{filePath}.new");
         
         var contents = File.ReadAllText(filePath);
+        var count    = 0;
         // todo: do this line by line instead!
         foreach (var pair in guids) {
-            Console.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
+            // Console.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
             writer.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
             contents = contents.Replace(pair.GuidFrom.Value, pair.GuidTo.Value);
+            count++;
         }
         
-        File.WriteAllText($"{filePath}.new", contents);
+        if (!Utility.IsRunningTests) {
+            File.WriteAllText($"{filePath}.new", contents);
+        }
+        
+        Console.WriteLine($"{Utility.ClampPathFolders(filePath, 6)} replaced {count} guids");
     }
     
     public void WriteToDisk(string name) {
-        File.Delete(name);
+        var logPath = Path.Combine(Paths.LogsFolder, name);
+        File.Delete(logPath);
 
-        using var writer = new StreamWriter(name);
+        using var writer = new StreamWriter(logPath);
         
         writer.WriteLine("Assets:");
         writer.WriteLine("---------------");

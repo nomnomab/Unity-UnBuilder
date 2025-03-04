@@ -88,6 +88,44 @@ public static partial class UnityAssetTypes {
         return mainAsset;
     }
     
+    public static ShaderFile? ParseShaderFile(string path) {
+        if (!File.Exists(path)) {
+            return null;
+        }
+        
+        // simply look for a shader path
+        // Shader "TextMeshPro/Distance Field" {
+        
+        var shader = new ShaderFile() {
+            FilePath = Path.GetFullPath(path),
+            Name     = string.Empty,
+        };
+        
+        using var reader = new StreamReader(path);
+        
+        while (reader.Peek() >= 0) {
+            // read lines
+            var line = reader.ReadLine();
+            if (line == null) continue;
+            
+            // parse name
+            var name = ShaderNamePattern.Match(line);
+            if (name != null && name.Success) {
+                var value = name.Groups["name"].Value;
+                if (!string.IsNullOrEmpty(value)) {
+                    shader.Name = value;
+                    break;
+                }
+            }
+        }
+        
+        if (string.IsNullOrEmpty(shader.Name)) {
+            return null;
+        }
+        
+        return shader;
+    }
+    
     private static UnityGuid? ParseGuid(string line) {
         var guid = GuidPattern.Match(line);
         if (guid != null && guid.Success) {
@@ -177,6 +215,7 @@ public static partial class UnityAssetTypes {
     private readonly static Regex FileIdReferencePattern = GetFileIdReferenceRegex();
     private readonly static Regex AssetReferencePattern = GetAssetReferenceRegex();
     private readonly static Regex AssetSubReferencePattern = GetAssetSubReferenceRegex();
+    private readonly static Regex ShaderNamePattern = GetShaderNameRegex();
     
     [GeneratedRegex(@"guid:\s(?<guid>[0-9A-Za-z]+)", RegexOptions.Compiled)]
     private static partial Regex GetGuidRegex();
@@ -189,4 +228,7 @@ public static partial class UnityAssetTypes {
     
     [GeneratedRegex(@"{fileID:\s(?<fileId>[0-9A-Za-z]+)}", RegexOptions.Compiled)]
     private static partial Regex GetAssetSubReferenceRegex();
+    
+    [GeneratedRegex(@"Shader\s+""(?<name>[^""]+)""", RegexOptions.Compiled)]
+    private static partial Regex GetShaderNameRegex();
 }

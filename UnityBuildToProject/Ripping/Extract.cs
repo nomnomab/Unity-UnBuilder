@@ -60,16 +60,6 @@ public static class Extract {
             Config   = config
         };
         
-        // trim .new files
-        var assetsFolder  = Path.Combine(extractData.GetProjectPath(), "Assets");
-        if (Directory.Exists(assetsFolder)) {
-            AnsiConsole.MarkupLine("[green]Cleaning[/] up old files...");
-            var priorNewFiles = Directory.GetFiles(assetsFolder, "*.new", SearchOption.AllDirectories);
-            foreach (var file in priorNewFiles) {
-                File.Delete(file);
-            }
-        }
-        
         await Task.Delay(1000);
         
         if(!args.SkipAssetRipper) {
@@ -86,6 +76,11 @@ public static class Extract {
             Logger.Clear();
         } else {
             extractData.Config.ExportRootPath = extractPath.folderPath;
+            
+            if (!Directory.Exists(extractData.Config.ProjectRootPath)) {
+                AnsiConsole.MarkupLine($"[red]Error[/]: No AssetRipper project found. Make sure you run without --skip_ar at least once.");
+                throw new DirectoryNotFoundException(extractData.Config.ProjectRootPath);
+            }
         }
         
         PrintLibraryConfiguration(config, false);

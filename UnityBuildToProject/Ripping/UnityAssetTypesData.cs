@@ -24,6 +24,18 @@ public record AssetFile {
     };
 }
 
+public record ShaderFile {
+    /// <summary>
+    /// The absolute file path to the asset.
+    /// </summary>
+    public required string FilePath;
+    
+    /// <summary>
+    /// The lookup path name. Is basically a path.
+    /// </summary>
+    public required string Name;
+}
+
 /// <summary>
 /// An id to an asset.
 /// </summary>

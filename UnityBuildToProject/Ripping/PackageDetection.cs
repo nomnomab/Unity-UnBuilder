@@ -16,45 +16,40 @@ public sealed class PackageDetection {
     /// Extracts the packages from a dummy project that uses project settings from
     /// the AssetRipper exported project.
     /// </summary>
-    public async Task<UnityPackages> GetPackagesFromVersion(UnityPath unityPath) {
+    public async Task<UnityPackages> GetPackagesFromVersion(ProgramArgs args, string newProjectPath, UnityPath unityPath) {
         var projectPath    = _extractData.Config.ProjectRootPath;
-        var newProjectPath = await _extractData.CreateNewProject();
         
         Utility.CopyOverScript(newProjectPath, "RouteStdOutput");
         
-        // if (!args.SkipPackageFetching) {
-        // create a dummy script that will instantly run on load
-        // which will extract all of the package information for this unity version
-        Utility.CopyOverScript(newProjectPath, "ExtractUnityVersionPackages");
-        
-        AnsiConsole.MarkupLine("[yellow]Fetching packages from project.[/]");
-        
-        var stepTree = new Panel(@"
+        if (!args.SkipPackageFetching) {
+            // create a dummy script that will instantly run on load
+            // which will extract all of the package information for this unity version
+            Utility.CopyOverScript(newProjectPath, "ExtractUnityVersionPackages");
+            
+            AnsiConsole.MarkupLine("[yellow]Fetching packages from project.[/]");
+            
+            var stepTree = new Panel(@"
 1. Rebuilds the Library folder
 2. Imports base packages
 3. Opens Unity and fetches the packages".TrimStart()) {
-            Header = new PanelHeader("Upcoming steps")
-        };
-        AnsiConsole.Write(stepTree);
-        AnsiConsole.WriteLine("This can take a few minutes!");
-        
-        await Task.Delay(3000);
-        
-        await UnityCLI.OpenProjectWithArgs("Fetching packages...", unityPath, newProjectPath, 
-            true,
-            "-disable-assembly-updater",
-            "-silent-crashes",
-            "-batchmode",
-            "-logFile -", 
-            "-executeMethod Nomnom.ExtractUnityVersionPackages.OnLoad",
-            "-quit",
-            "| Write-Output"
-        );
-        // }
+                Header = new PanelHeader("Upcoming steps")
+            };
+            AnsiConsole.Write(stepTree);
+            AnsiConsole.WriteLine("This can take a few minutes!");
+            
+            await Task.Delay(3000);
+            
+            await UnityCLI.OpenProjectHiddenNoQuit("Fetching packages...", unityPath, true, newProjectPath,
+                "-executeMethod Nomnom.ExtractUnityVersionPackages.OnLoad"
+            );
+        }
         
         // now parse the file the extractor created
         var filePath = Path.Combine(newProjectPath, "..", "packages_output.json");
         if (!File.Exists(filePath)) {
+            if (args.SkipPackageFetching) {
+                AnsiConsole.MarkupLine("[red]Error[/]: No packages_output.json found, make sure you run without --skip_pack at least one time.");
+            }
             throw new FileNotFoundException(filePath);
         }
         
@@ -161,9 +156,11 @@ public sealed class PackageDetection {
         }
     }
     
-    public async Task ImportPackages(UnityPath unityPath, PackageTree packageTree) {
+    public async Task ImportPackages(ProgramArgs args, UnityPath unityPath, PackageTree packageTree) {
         var tempProjectPath = _extractData.GetProjectPath();
         Utility.CopyOverScript(tempProjectPath, "RouteStdOutput");
+        
+        if (args.SkipPackageAll) return;
         
         var packageList = packageTree.GetList().ToArray();
         var packageNames = packageList
@@ -174,6 +171,7 @@ public sealed class PackageDetection {
                 
                 return x.Item1;
             });
+        
         Utility.CopyOverScript(tempProjectPath, "InstallPackages", x => {
             return x
                 // to install
@@ -220,7 +218,7 @@ public sealed class PackageDetection {
         await Task.Delay(3000);
         
         // write to the manifest first
-        AddPackagesToManifest(tempProjectPath, packageList);
+        AddPackagesToManifest(args, tempProjectPath, packageList);
         
         // then install the packages after
         await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, 
@@ -233,10 +231,37 @@ public sealed class PackageDetection {
             "-quit",
             "| Write-Output"
         );
+        
+        // cache the manifest
+        // var manifestPath = Path.Combine(tempProjectPath, "Packages", "manifest.json");
+        // var cachePath    = Path.Combine(tempProjectPath, "..", "manifest.json");
+        // File.Copy(manifestPath, cachePath, true);
+        
+        // var lockFilePath = Path.Combine(tempProjectPath, "Packages", "packages-lock.json");
+        // if (File.Exists(lockFilePath)) {
+        //     cachePath        = Path.Combine(tempProjectPath, "..", "packages-lock.json");
+        //     File.Copy(lockFilePath, cachePath, true);
+        // }
     }
     
-    private static void AddPackagesToManifest(string projectPath, IEnumerable<(string, string)> packages) {
+    private static void AddPackagesToManifest(ProgramArgs args, string projectPath, IEnumerable<(string, string)> packages) {
         var manifestPath = Path.Combine(projectPath, "Packages", "manifest.json");
+        // var cachePath    = Path.Combine(projectPath, "..", "manifest.json");
+        
+        if (args.SkipPackageFetching) {
+            // if (!File.Exists(cachePath)) {
+            //     AnsiConsole.MarkupLine($"[red]Error[/]: no cache manifest file found, make sure you run without --skip_pack at least once.");
+            //     throw new FileNotFoundException(cachePath);
+            // }
+            
+            // File.Copy(cachePath, manifestPath, true);
+            return;
+        }
+        
+        if (!File.Exists(manifestPath)) {
+            AnsiConsole.MarkupLine($"[red]Error[/]: no manifest file found");
+            throw new FileNotFoundException(manifestPath);
+        }
         
         // load up the json into a document
         var manifestContents = File.ReadAllText(manifestPath);

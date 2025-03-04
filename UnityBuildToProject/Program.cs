@@ -5,6 +5,12 @@ namespace Nomnom;
 
 class Program {
     static async Task Main(string[] args) {
+        if (Utility.IsRunningTests) {
+            throw new Exception("Cannot run Program while testing");
+        }
+        
+        Console.WriteLine($"Not in testing mode!");
+        
         try {
             LogFile.Create();
             LogFile.Header("Starting up");

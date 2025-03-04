@@ -29,6 +29,18 @@ public static class UnityCLI {
         ]);
     }
     
+    public static async Task OpenProjectHiddenNoQuit(string message, UnityPath unityPath, bool routeStd, string projectPath, params string[] args) {
+        await OpenProjectWithArgs(message, unityPath, projectPath, routeStd, [
+            "-disable-assembly-updater",
+            "-silent-crashes",
+            "-batchmode",
+            "-nographics",
+            "-logFile -", 
+            .. args,
+            "| Write-Output"
+        ]);
+    }
+    
     public static async Task OpenProjectHidden(string message, UnityPath unityPath, bool routeStd, string projectPath, params string[] args) {
         await OpenProjectWithArgs(message, unityPath, projectPath, routeStd, [
             "-disable-assembly-updater",
