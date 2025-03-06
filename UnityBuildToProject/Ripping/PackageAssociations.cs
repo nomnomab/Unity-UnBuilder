@@ -69,12 +69,19 @@ public static class PackageAssociations {
         "UnityEngine.SharedInternalsModule",
         "UnityEngine.HotReloadModule",
         "Unity.ResourceManager",
+        "Unity.Rider.Editor",
+        "Boo.Lang",
+        "UnityScript.Lang",
+        "dfScriptLite"
     ];
     
     public static readonly string[] ExcludeIds = [
         // "com.unity.test-framework.performance",
         // "com.unity.test-framework",
-        "com.unity.collab-proxy"
+        "com.unity.collab-proxy",
+        "com.unity.ide.rider",
+        "com.unity.ide.visualstudio",
+        "com.unity.ide.vscode"
     ];
     
     public static readonly PackageInfo[] Packages = [.. new PackageInfo[] {
@@ -111,6 +118,7 @@ public static class PackageAssociations {
                 "Unity.ProBuilder.KdTree",
                 "Unity.ProBuilder.Poly2Tri",
                 "Unity.ProBuilder.Stl",
+                "Unity.ProBuilder.Csg"
             ]
         },
         new() {

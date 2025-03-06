@@ -24,15 +24,17 @@ public record ExtractData {
         var newProjectPath  = GetProjectPath();
         
         // delete the old project across multiple tasks if possible
-        if (!args.SkipPackageAll) {
-            await Paths.DeleteDirectory(newProjectPath);
-        } else {
-            await Paths.DeleteDirectory(newProjectPath, excludeFolders: [
-                "Packages",
-                "Library",
-                "ProjectSettings",
-                "UserSettings"
-            ]);
+        if (Directory.Exists(newProjectPath)) {
+            if (!args.SkipPackageAll) {
+                await Paths.DeleteDirectory(newProjectPath);
+            } else {
+                await Paths.DeleteDirectory(newProjectPath, excludeFolders: [
+                    "Packages",
+                    "Library",
+                    "ProjectSettings",
+                    "UserSettings"
+                ]);
+            }
         }
         
         Directory.CreateDirectory(newProjectPath);
@@ -285,13 +287,13 @@ Tga  = Lossless. Truevision TGA.")]
     public required bool EnableStaticMeshSeparation { get; set; }
     [TomlPrecedingComment("Only available with AssetRipper Premium.")]
     public required bool EnableAssetDeduplication { get; set; }
-    [TomlPrecedingComment(@"Options:
-GroupByAssetType  = Bundled assets are treated the same as assets from other files.
-GroupByBundleName = Bundled assets are grouped by their asset bundle name.
-                    For example: Assets/Asset_Bundles/NameOfAssetBundle/InternalPath1/.../InternalPathN/assetName.extension
-DirectExport      = Bundled assets are exported without grouping.
-                    For example: Assets/InternalPath1/.../InternalPathN/bundledAssetName.extension")]
-    public required BundledAssetsExportMode BundledAssetsExportMode { get; set; }
+//     [TomlPrecedingComment(@"Options:
+// GroupByAssetType  = Bundled assets are treated the same as assets from other files.
+// GroupByBundleName = Bundled assets are grouped by their asset bundle name.
+//                     For example: Assets/Asset_Bundles/NameOfAssetBundle/InternalPath1/.../InternalPathN/assetName.extension
+// DirectExport      = Bundled assets are exported without grouping.
+//                     For example: Assets/InternalPath1/.../InternalPathN/bundledAssetName.extension")]
+//     public required BundledAssetsExportMode BundledAssetsExportMode { get; set; }
     
     public static ExtractSettings Default {
         get {
@@ -317,7 +319,7 @@ DirectExport      = Bundled assets are exported without grouping.
                 EnablePrefabOutlining       = processing.EnablePrefabOutlining,
                 EnableStaticMeshSeparation  = processing.EnableStaticMeshSeparation,
                 EnableAssetDeduplication    = processing.EnableAssetDeduplication,
-                BundledAssetsExportMode     = processing.BundledAssetsExportMode
+                // BundledAssetsExportMode     = processing.BundledAssetsExportMode
             };
         }
     }
@@ -343,7 +345,7 @@ DirectExport      = Bundled assets are exported without grouping.
             EnablePrefabOutlining       = config.ProcessingSettings.EnablePrefabOutlining,
             EnableStaticMeshSeparation  = config.ProcessingSettings.EnableStaticMeshSeparation,
             EnableAssetDeduplication    = config.ProcessingSettings.EnableAssetDeduplication,
-            BundledAssetsExportMode     = config.ProcessingSettings.BundledAssetsExportMode,
+            // BundledAssetsExportMode     = config.ProcessingSettings.BundledAssetsExportMode,
         };
     }
     
@@ -366,7 +368,7 @@ DirectExport      = Bundled assets are exported without grouping.
                 EnablePrefabOutlining       = default,
                 EnableStaticMeshSeparation  = default,
                 EnableAssetDeduplication    = default,
-                BundledAssetsExportMode     = default,
+                // BundledAssetsExportMode     = default,
             };
         }
     }

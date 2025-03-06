@@ -191,8 +191,8 @@ public record RoslynDatabase {
             throw new DirectoryNotFoundException(assetsPath);
         }
         
-        var files      = Directory.GetFiles(assetsPath, "*.new", SearchOption.AllDirectories);
-        Parallel.ForEach(files, x => File.Delete(x));
+        var files = Directory.GetFiles(assetsPath, "*.new", SearchOption.AllDirectories);
+        Parallel.ForEach(files, File.Delete);
     }
     
     public static HashSet<string> GetExclusionFiles(UnityGuid[] guids, GuidDatabase guidDb, RoslynDatabase typeDb) {

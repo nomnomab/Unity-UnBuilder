@@ -7,67 +7,29 @@ public static class AsyncProgram {
     public static async Task Run(AppSettings settings, string[] args) {
         LogFile.Header("Running async program");
         
-        // parse the program arguments
-        var parsedArgs = ProgramArgsParser.Parse(args)
-            .WithParsed(o => {
-                Console.Clear();
-                
-                if (o.SkipPackageAll) {
-                    o.SkipPackageFetching = true;
-                }
-                
-                var tree = new Tree("Unity Build to Project");
-                tree.AddNode( "version  : 0.0.1");
-                tree.AddNode($"game path: \"{o.GameExecutablePath}\"");
-                
-                AnsiConsole.Write(tree);
-            });
-            
-        if (parsedArgs == null) {
-            throw new Exception("Failed to parse args!");
-        }
+        var toolData = ToolSettings.Create(settings, args);
         
-        var argsJson = System.Text.Json.JsonSerializer.Serialize(parsedArgs.Value);
+        var argsJson = System.Text.Json.JsonSerializer.Serialize(toolData.ProgramArgs);
         AnsiConsole.WriteLine($"args:\n{argsJson}");
         
-        await StartConversion(parsedArgs.Value, settings);
+        await StartConversion(toolData);
     }
     
     /// <summary>
     /// Start the process of extracting the game build into a project.
     /// </summary>
-    static async Task StartConversion(ProgramArgs args, AppSettings settings) {
+    static async Task StartConversion(ToolSettings settings) {
         LogFile.Header("Starting conversion");
         
-        var gameName     = Path.GetFileNameWithoutExtension(args.GameExecutablePath);
-        var gameSettings = GameSettings.Load(gameName);
-        if (gameSettings == null) {
-            var panel = new Panel(@$"It looks like this is your [underline]first time[/] trying to decompile ""{gameName}""!
-A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for you next to the .exe, go ahead and modify it before running the tool again. 🙂
-
-{GameSettings.GetSavePath(gameName)}");
-            AnsiConsole.Write(panel);
-            return;
-        }
-        
-        AnsiConsole.WriteLine($"gameSettings:\n{gameSettings}");
-        
-        // fetch unity and build information
-        var unityInstalls = UnityInstallsPath.FromFolder(settings.UnityInstallsFolder!);
-        var buildPath     = BuildPath.FromExe(args.GameExecutablePath);
-        var buildMeta     = BuildMetadata.Parse(buildPath);
-        
-        AnsiConsole.WriteLine(buildMeta.ToString());
-        
         // run actual conversion process
-        await RunConversion(args, settings, gameSettings, unityInstalls, buildMeta);
+        await RunConversion(settings);
         
         // done!
-        LogFile.Header($"Results for {gameName}");
+        LogFile.Header($"Results for {settings.GetGameName()}");
         Profiling.TotalDuration.PrintTimestamps();
     }
     
-    static async Task RunConversion(ProgramArgs args, AppSettings settings, GameSettings gameSettings, UnityInstallsPath unityInstalls, BuildMetadata buildMeta) {
+    static async Task RunConversion(ToolSettings settings) {
         // extract assets to disk
         Profiling.Begin(
             "extract_assets",
@@ -75,60 +37,77 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         );
         
         // get extraction information for AssetRipper
-        var extractPath      = ExtractPath.FromOutputFolder("output");
-        var (_, gameData, _) = Extract.ExtractGameData(settings.ExtractSettings, null, buildMeta, false);
+        var gameName         = settings.GetGameName();
+        var extractPath      = ExtractPath.FromOutputFolder($"output_{gameName}");
+        var (_, gameData, _) = Extract.ExtractGameData(settings, null, false);
+        settings.SetExtractPath(extractPath);
+        settings.SetGameData(gameData);
         
         // fetch the unity install path for later
-        var unityInstall     = UnityPath.FromVersion(unityInstalls, gameData.ProjectVersion.ToString());
-        var extractData      = await Extract.ExtractAssets(args, settings, buildMeta, extractPath);
+        var extractData      = await Extract.ExtractAssets(settings);
+        settings.SetExtractData(extractData);
+        
         RoslynDatabase.RemoveAllNewFiles(extractData.Config.ProjectRootPath);
+        
+        // ApplyFixes.FixMissingGuids(gameSettings, extractData);
         
         await Profiling.End();
         
+        // fetch the project package list for the unity version
         Profiling.Begin(
             "getting_packages",
             "Getting package"
         );
         
-        // fetch the project package list for the unity version
         var packageDetection = new PackageDetection(extractData);
-        var newProjectPath   = await extractData.CreateNewProject(args);
-        var packages         = await packageDetection.GetPackagesFromVersion(args, newProjectPath, unityInstall);
+        var newProjectPath   = await extractData.CreateNewProject(settings.ProgramArgs);
         
-        await Profiling.End();
+        var versionGT2018    = gameData.ProjectVersion.GreaterThanOrEquals(2018);
+        Console.WriteLine($"{gameData.ProjectVersion} >= 2018? {versionGT2018}");
         
-        Profiling.Begin(
-            "mapping_packages",
-            "Mapping Packages"
-        );
-        
-        // try to determine which packages are for this specific project
-        var packageTree      = packageDetection.TryToMapPackagesToProject(packages);
-        packageDetection.ApplyGameSettingsPackages(gameSettings, packageTree);
-        
-        packageTree.WriteToConsole();
-        
-        packages.WriteToDisk("unity_package.log");
-        packageTree.WriteToDisk("tool_package.log");
-        
-        await Profiling.End();
-        
-        Profiling.Begin(
-            "importing_packages",
-            "Importing packages"
-        );
-        
-        // now import the packages
-        await packageDetection.ImportPackages(args, unityInstall, packageTree);
-        
-        await Profiling.End();
+        PackageTree? packageTree = null;
+        if (versionGT2018) {
+            var packages = versionGT2018 ? await packageDetection.GetPackagesFromVersion(settings, newProjectPath) : new UnityPackages() {
+                Packages = []
+            };
+            
+            await Profiling.End();
+            
+            Profiling.Begin(
+                "mapping_packages",
+                "Mapping Packages"
+            );
+            
+            // try to determine which packages are for this specific project
+            // todo: handle 2017 not supporting this :))))))
+            
+            packageTree = packageDetection.TryToMapPackagesToProject(packages);
+            packageDetection.ApplyGameSettingsPackages(settings.GameSettings, packageTree);
+            
+            packageTree.WriteToConsole();
+            
+            packages.WriteToDisk("unity_package.log");
+            packageTree.WriteToDisk("tool_package.log");
+            
+            await Profiling.End();
+            
+            Profiling.Begin(
+                "importing_packages",
+                "Importing packages"
+            );
+            
+            // now import the packages
+            await packageDetection.ImportPackages(settings, packageTree);
+            
+            await Profiling.End();
+        }
         
         Profiling.Begin(
             "pre_fixes",
             "Applying pre-fixes"
         );
         
-        await ApplyFixes.FixBeforeGuids(settings, gameSettings, extractData, packageTree, unityInstall);
+        await ApplyFixes.FixBeforeGuids(settings);
         
         await Profiling.End();
         
@@ -145,11 +124,16 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
             "Extracting guids for final project"
         );
         
-        var builtinDb = await ExtractGuids(
-            unityInstall.GetBuiltInPackagesPath(),
+        var unityPath = settings.GetUnityPath();
+        var builtinDb = versionGT2018 ? await ExtractGuids(
+            unityPath.GetBuiltInPackagesPath(),
             "extract_guids_built_in",
             "Extracting guids for built-in packages"
-        );
+        ) : new GuidDatabase() {
+            Assets              = [],
+            AssociatedFilePaths = [],
+            FilePathToGuid      = [],
+        };
         
         // process the types between the projects
         var extractTypes = await ExtractTypes(
@@ -164,11 +148,14 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
             "Extracting types for final project"
         );
         
-        var builtInTypes = await ExtractTypes(
-            unityInstall.GetBuiltInPackagesPath(),
+        var builtInTypes = versionGT2018 ? await ExtractTypes(
+            unityPath.GetBuiltInPackagesPath(),
             "extract_types_built_in",
             "Extracting types for built-in packages"
-        );
+        ) : new RoslynDatabase() {
+            FullNameToFilePath    = [],
+            ShaderNameToFilePaths = []
+        };
         
         Profiling.Begin(
             "merging_guids",
@@ -204,10 +191,8 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         
         // tidy up the project folders
         ExtractData.RemoveEditorFolderFromProject(extractData.GetProjectPath());
-        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(gameSettings, extractData.GetProjectPath());
+        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(settings.GameSettings, settings.ExtractData.GetProjectPath());
         ExtractData.RemoveLibraryFolders(extractData.Config.ProjectRootPath);
-        
-        packageTree.WriteToConsole();
         
         await Profiling.End();
         
@@ -218,9 +203,11 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         
         LogFile.Header("Final steps");
         
+        ApplyFixes.FixBeforeRecompile(settings);
+        
         Utility.CopyOverScript(extractData.GetProjectPath(), "RecompileUnity");
        
-        await UnityCLI.OpenProjectHidden("Opening project to recompile", unityInstall, true, extractData.GetProjectPath(),
+        await UnityCLI.OpenProjectHidden("Opening project to recompile", unityPath, true, extractData.GetProjectPath(),
             "-executeMethod Nomnom.RecompileUnity.OnLoad"
         );
         
@@ -232,12 +219,12 @@ A {Path.GetFileName(GameSettings.GetSavePath(gameName))}.toml was created for yo
         );
         
         // apply any appropriate fixes for the specific project
-        await ApplyFixes.FixAll(settings, gameSettings, extractData, packageTree, unityInstall);
+        await ApplyFixes.FixAfterRecompile(settings, packageTree);
         
         await Profiling.End();
         
         // final project open
-        _ = UnityCLI.OpenProject("Opening project", unityInstall, false, extractData.GetProjectPath());
+        _ = UnityCLI.OpenProject("Opening project", unityPath, false, extractData.GetProjectPath());
     }
     
     private static async Task<GuidDatabase> ExtractGuids(string path, string name, string message) {

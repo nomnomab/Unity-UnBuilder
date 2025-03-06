@@ -95,6 +95,19 @@ public static partial class Utility {
                 foreach (var file in files) {
                     AnsiConsole.MarkupLine($"[grey]Copying[/] \"{ClampPathFolders(file, 4)}\" to \"{ClampPathFolders(targetPath, 4)}\"");
                     
+                    // generic scripts tend to have this
+                    if (file.Contains('`')) continue;
+                    
+                    // older assets generate files with just dashes
+                    var noDash = file.Replace("-", string.Empty);
+                    if (string.IsNullOrEmpty(noDash)) {
+                        continue;
+                    }
+                    
+                    // if (file.Contains("-PrivateImplementationDetails-")) {
+                    //     continue;
+                    // }
+                    
                     var to      = file.Replace(sourcePath, targetPath);
                     var folder  = Path.GetDirectoryName(to);
                     // var isValid = FileNonSuffixExists(file) is 0 or 2;
@@ -241,7 +254,7 @@ public static partial class Utility {
     }
 
     [GeneratedRegex(@"^(?<base>.+?)(?:_\d+)((?:\.[^.]+)+)$", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex GetFileUnderscoreRegex();
+    public static partial Regex GetFileUnderscoreRegex();
 }
 
 public record ProfileDuration {
@@ -263,6 +276,8 @@ public record ProfileDuration {
     }
     
     public void PrintTimestamps() {
+        if (Timestamps.Count == 0) return;
+        
         var maxLabelLength = Timestamps.Max(x => x.Label.Length) + 1;
         
         foreach (var (label, duration) in Timestamps) {

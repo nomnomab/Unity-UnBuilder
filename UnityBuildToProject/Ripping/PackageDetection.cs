@@ -16,12 +16,12 @@ public sealed class PackageDetection {
     /// Extracts the packages from a dummy project that uses project settings from
     /// the AssetRipper exported project.
     /// </summary>
-    public async Task<UnityPackages> GetPackagesFromVersion(ProgramArgs args, string newProjectPath, UnityPath unityPath) {
+    public async Task<UnityPackages> GetPackagesFromVersion(ToolSettings settings, string newProjectPath) {
         var projectPath    = _extractData.Config.ProjectRootPath;
         
         Utility.CopyOverScript(newProjectPath, "RouteStdOutput");
         
-        if (!args.SkipPackageFetching) {
+        if (!settings.ProgramArgs.SkipPackageFetching) {
             // create a dummy script that will instantly run on load
             // which will extract all of the package information for this unity version
             Utility.CopyOverScript(newProjectPath, "ExtractUnityVersionPackages");
@@ -39,6 +39,7 @@ public sealed class PackageDetection {
             
             await Task.Delay(3000);
             
+            var unityPath = settings.GetUnityPath();
             await UnityCLI.OpenProjectHiddenNoQuit("Fetching packages...", unityPath, true, newProjectPath,
                 "-executeMethod Nomnom.ExtractUnityVersionPackages.OnLoad"
             );
@@ -47,7 +48,7 @@ public sealed class PackageDetection {
         // now parse the file the extractor created
         var filePath = Path.Combine(newProjectPath, "..", "packages_output.json");
         if (!File.Exists(filePath)) {
-            if (args.SkipPackageFetching) {
+            if (settings.ProgramArgs.SkipPackageFetching) {
                 AnsiConsole.MarkupLine("[red]Error[/]: No packages_output.json found, make sure you run without --skip_pack at least one time.");
             }
             throw new FileNotFoundException(filePath);
@@ -156,11 +157,11 @@ public sealed class PackageDetection {
         }
     }
     
-    public async Task ImportPackages(ProgramArgs args, UnityPath unityPath, PackageTree packageTree) {
+    public async Task ImportPackages(ToolSettings settings, PackageTree packageTree) {
         var tempProjectPath = _extractData.GetProjectPath();
         Utility.CopyOverScript(tempProjectPath, "RouteStdOutput");
         
-        if (args.SkipPackageAll) return;
+        if (settings.ProgramArgs.SkipPackageAll) return;
         
         var packageList = packageTree.GetList().ToArray();
         var packageNames = packageList
@@ -186,24 +187,6 @@ public sealed class PackageDetection {
                 .Replace("#_PACKAGE_REMOVE_COUNT", PackageAssociations.ExcludeIds.Length.ToString());
         });
         
-        if (packageTree.Has("com.unity.inputsystem")) {
-            // if we have the new input system, add a "enableNativePlatformBackendsForNewInputSystem"
-            // field to supress the popup box
-            var projectSettingsPath = Path.Combine(tempProjectPath, "ProjectSettings", "ProjectSettings.asset");
-            var projectSettingsContent = File.ReadAllLines(projectSettingsPath);
-            
-            // insert after cloudEnabled
-            var sb = new StringBuilder();
-            foreach (var line in projectSettingsContent) {
-                sb.AppendLine(line);
-                if (line.StartsWith("  cloudEnabled:")) {
-                    sb.AppendLine("  enableNativePlatformBackendsForNewInputSystem: 1");
-                }
-            }
-            
-            File.WriteAllText(projectSettingsPath, sb.ToString());
-        }
-        
         AnsiConsole.MarkupLine("[yellow]Installing packages into project.[/]");
         
         var stepTree = new Panel(@"
@@ -218,9 +201,10 @@ public sealed class PackageDetection {
         await Task.Delay(3000);
         
         // write to the manifest first
-        AddPackagesToManifest(args, tempProjectPath, packageList);
+        AddPackagesToManifest(settings.ProgramArgs, tempProjectPath, packageList);
         
         // then install the packages after
+        var unityPath = settings.GetUnityPath();
         await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, 
             true,
             "-disable-assembly-updater",
@@ -231,6 +215,37 @@ public sealed class PackageDetection {
             "-quit",
             "| Write-Output"
         );
+        
+        if (packageTree.Has("com.unity.inputsystem")) {
+            // if we have the new input system, add a "enableNativePlatformBackendsForNewInputSystem"
+            // field to supress the popup box
+            // can be different depending on unity version
+            var projectSettingsPath = Path.Combine(tempProjectPath, "ProjectSettings", "ProjectSettings.asset");
+            var projectSettingsContent = File.ReadAllLines(projectSettingsPath);
+            
+            // insert after cloudEnabled
+            var sb = new StringBuilder();
+            foreach (var line in projectSettingsContent) {
+                sb.AppendLine(line);
+                
+                // 2019
+                // also has: disableOldInputManagerSupport
+                if (line.StartsWith("  cloudEnabled:")) {
+                    Console.WriteLine($"Replaced enableNativePlatformBackendsForNewInputSystem");
+                    sb.AppendLine("  enableNativePlatformBackendsForNewInputSystem: 1");
+                    continue;
+                }
+                
+                // 2020, 2021
+                if (line.StartsWith("  activeInputHandler:")) {
+                    Console.WriteLine($"Replaced activeInputHandler");
+                    sb.AppendLine("  activeInputHandler: 2");
+                    continue;
+                }
+            }
+            
+            File.WriteAllText(projectSettingsPath, sb.ToString());
+        }
         
         // cache the manifest
         // var manifestPath = Path.Combine(tempProjectPath, "Packages", "manifest.json");
@@ -282,6 +297,12 @@ public sealed class PackageDetection {
                     dependencies[package.Item1] = package.Item2;
                 }
             }
+        }
+        
+        foreach (var package in PackageAssociations.ExcludeIds) {
+            try {
+                dependencies.Remove(package);
+            } catch { }
         }
         
         var newJson = rootNode.ToJsonString(new JsonSerializerOptions {

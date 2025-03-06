@@ -31,6 +31,7 @@ public record ExtractPath(string folderPath) {
             Path.Combine(
                 exePath,
                 "..",
+                "output",
                 folderName
             )
         );

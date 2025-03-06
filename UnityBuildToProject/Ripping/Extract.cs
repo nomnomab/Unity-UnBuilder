@@ -7,7 +7,7 @@ using Spectre.Console;
 namespace Nomnom;
 
 public static class Extract {
-    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(ExtractSettings? settings, string? customPath, BuildMetadata buildMetadata, bool process) {
+    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(ToolSettings settings, string? customPath, bool process) {
         var config = new LibraryConfiguration();
         config.LoadFromDefaultPath();
         
@@ -15,27 +15,28 @@ public static class Extract {
             config.ExportRootPath = customPath;
         }
         
-        if (settings != null) {
-            config.ImportSettings.ScriptContentLevel             = settings.ScriptContentLevel;
-            config.ImportSettings.StreamingAssetsMode            = settings.StreamingAssetsMode;
+        var extractSettings = settings.AppSettings.ExtractSettings;
+        if (extractSettings != null) {
+            config.ImportSettings.ScriptContentLevel             = extractSettings.ScriptContentLevel;
+            config.ImportSettings.StreamingAssetsMode            = extractSettings.StreamingAssetsMode;
             
-            config.ExportSettings.AudioExportFormat              = settings.AudioExportFormat;
-            config.ExportSettings.TextExportMode                 = settings.TextExportMode;
-            config.ExportSettings.SpriteExportMode               = settings.SpriteExportMode;
-            config.ExportSettings.ShaderExportMode               = settings.ShaderExportMode;
-            config.ExportSettings.ScriptLanguageVersion          = settings.ScriptLanguageVersion;
-            config.ExportSettings.ScriptExportMode               = settings.ScriptExportMode;
-            config.ExportSettings.LightmapTextureExportFormat    = settings.LightmapTextureExportFormat;
-            config.ExportSettings.ImageExportFormat              = settings.ImageExportFormat;
+            config.ExportSettings.AudioExportFormat              = extractSettings.AudioExportFormat;
+            config.ExportSettings.TextExportMode                 = extractSettings.TextExportMode;
+            config.ExportSettings.SpriteExportMode               = extractSettings.SpriteExportMode;
+            config.ExportSettings.ShaderExportMode               = extractSettings.ShaderExportMode;
+            config.ExportSettings.ScriptLanguageVersion          = extractSettings.ScriptLanguageVersion;
+            config.ExportSettings.ScriptExportMode               = extractSettings.ScriptExportMode;
+            config.ExportSettings.LightmapTextureExportFormat    = extractSettings.LightmapTextureExportFormat;
+            config.ExportSettings.ImageExportFormat              = extractSettings.ImageExportFormat;
             
-            config.ProcessingSettings.EnablePrefabOutlining      = settings.EnablePrefabOutlining;
-            config.ProcessingSettings.EnableStaticMeshSeparation = settings.EnableStaticMeshSeparation;
-            config.ProcessingSettings.EnableAssetDeduplication   = settings.EnableAssetDeduplication;
-            config.ProcessingSettings.BundledAssetsExportMode    = settings.BundledAssetsExportMode;
+            config.ProcessingSettings.EnablePrefabOutlining      = extractSettings.EnablePrefabOutlining;
+            config.ProcessingSettings.EnableStaticMeshSeparation = extractSettings.EnableStaticMeshSeparation;
+            config.ProcessingSettings.EnableAssetDeduplication   = extractSettings.EnableAssetDeduplication;
+            // config.ProcessingSettings.BundledAssetsExportMode    = extractSettings.BundledAssetsExportMode;
         }
         
         var exportHandler = new ExportHandler(config);
-        var inputPath     = buildMetadata.Path.exePath;
+        var inputPath     = settings.BuildMetadata.Path.exePath;
         var gameData      = process ? exportHandler.LoadAndProcess([
             inputPath
         ]) : exportHandler.Load([
@@ -45,8 +46,8 @@ public static class Extract {
         return (config, gameData, exportHandler);
     }
     
-    public static async Task<ExtractData> ExtractAssets(ProgramArgs args, AppSettings settings, BuildMetadata buildMetadata, ExtractPath extractPath) {
-        if(!args.SkipAssetRipper) {
+    public static async Task<ExtractData> ExtractAssets(ToolSettings settings) {
+        if(!settings.ProgramArgs.SkipAssetRipper) {
             AnsiConsole.MarkupLine("[underline]Extracting assets...[/]");
             
             // log with the specific one below
@@ -54,16 +55,16 @@ public static class Extract {
             Logger.Add(new ExtractLogger());
         }
         
-        var (config, gameData, exportHandler) = ExtractGameData(settings.ExtractSettings, null, buildMetadata, true);
+        var (config, gameData, exportHandler) = ExtractGameData(settings, null, true);
         var extractData = new ExtractData() {
-            GameName = buildMetadata.GetName(),
+            GameName = settings.BuildMetadata.GetName(),
             GameData = gameData,
             Config   = config
         };
         
         await Task.Delay(1000);
         
-        if(!args.SkipAssetRipper) {
+        if(!settings.ProgramArgs.SkipAssetRipper) {
             PrintLibraryConfiguration(config, false);
             
             // starts a thread to export with AssetRipper
@@ -71,12 +72,12 @@ public static class Extract {
             await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Aesthetic)
                 .StartAsync("Exporting...", 
-                async ctx => await WaitForAssetRipper(ctx, extractPath, exportHandler, gameData)
+                async ctx => await WaitForAssetRipper(ctx, settings.ExtractPath, exportHandler, gameData)
             );
             
             Logger.Clear();
         } else {
-            extractData.Config.ExportRootPath = extractPath.folderPath;
+            extractData.Config.ExportRootPath = settings.ExtractPath.folderPath;
             
             if (!Directory.Exists(extractData.Config.ProjectRootPath)) {
                 AnsiConsole.MarkupLine($"[red]Error[/]: No AssetRipper project found. Make sure you run without --skip_ar at least once.");
@@ -182,13 +183,14 @@ public static class Extract {
             new($"Auxiliary Files Path      : \"{config.AuxiliaryFilesPath}\""),
             new($"Project Settings Path     : \"{config.ProjectSettingsPath}\""),
             new($"Disable Script Import     : {config.DisableScriptImport}"),
-            new($"Bundled Assets Export Mode: {config.ProcessingSettings.BundledAssetsExportMode}"),
+            // new($"Bundled Assets Export Mode: {config.ProcessingSettings.BundledAssetsExportMode}"),
             new($"Script Level              : {config.ImportSettings.ScriptContentLevel}"),
             new($"Ignore Streaming Assets   : {config.ImportSettings.IgnoreStreamingAssets}"),
             new($"Streaming Assets Mode     : {config.ImportSettings.StreamingAssetsMode}"),
             new($"Audio Export Format       : {config.ExportSettings.AudioExportFormat}"),
             new($"Text Export Mode          : {config.ExportSettings.TextExportMode}"),
             new($"Sprite Export Mode        : {config.ExportSettings.SpriteExportMode}"),
+            new($"Shader Export Mode        : {config.ExportSettings.ShaderExportMode}"),
             new($"Script Language Version   : {config.ExportSettings.ScriptLanguageVersion}"),
             new($"Script Export Mode        : {config.ExportSettings.ScriptExportMode}"),
             new($"Lightmap Export Format    : {config.ExportSettings.LightmapTextureExportFormat}"),

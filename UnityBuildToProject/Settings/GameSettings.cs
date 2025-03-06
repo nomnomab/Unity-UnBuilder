@@ -1,5 +1,3 @@
-using System.Reflection;
-using Tomlet;
 using Tomlet.Attributes;
 
 namespace Nomnom;
@@ -14,13 +12,26 @@ public record GameSettings {
             .ToLower();
     }
     
-    public static string GetSavePath(string gameName) {
+    public static string GetSaveFolder(string gameName) {
         gameName = GetGameName(gameName);
             
         var outputPath = Path.GetFullPath(
             Path.Combine(
                 Settings.FolderPath,
-                $"settings_game_{gameName}.toml"
+                gameName
+            )
+        );
+        
+        return outputPath;
+    }
+    
+    public static string GetSavePath(string gameName) {
+        gameName = GetGameName(gameName);
+            
+        var outputPath = Path.GetFullPath(
+            Path.Combine(
+                GetSaveFolder(gameName),
+                "settings.toml"
             )
         );
         
@@ -33,13 +44,14 @@ public record GameSettings {
             Packages = []
         },
         FileOverrides = new() {
-            ProjectPaths = []
+            ProjectPaths = [],
         }
     };
     
     public static GameSettings? Load(string gameName) {
         var savePath = GetSavePath(gameName);
         var settings = Settings.Load(savePath, Default, null);
+        
         return settings;
     }
     
@@ -62,12 +74,12 @@ A version of ""no"" will exclude the package if it is included.")]
 public record PackageOverride(string Id, string? Version);
 
 public record FileOverrides {
-    [TomlPrecedingComment(@"Add files and folders that will make sure to be included in the final project.
+    [TomlPrecedingComment(@"Files and folders that will make sure to be included in the final project.
 
 You really only need to do this for things like custom scripts inside of an internal package namespace folder.
 
 Each entry is in the format of:
-{ Path = ""Path/To/Folder"" },")]
+{ Path = ""Asset/FileOrFolder"" },")]
     public required FileOverride[] ProjectPaths = [];
 }
 

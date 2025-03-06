@@ -211,11 +211,11 @@ public static partial class UnityAssetTypes {
         return null;
     }
     
-    private readonly static Regex GuidPattern = GetGuidRegex();
-    private readonly static Regex FileIdReferencePattern = GetFileIdReferenceRegex();
-    private readonly static Regex AssetReferencePattern = GetAssetReferenceRegex();
-    private readonly static Regex AssetSubReferencePattern = GetAssetSubReferenceRegex();
-    private readonly static Regex ShaderNamePattern = GetShaderNameRegex();
+    public readonly static Regex GuidPattern = GetGuidRegex();
+    public readonly static Regex FileIdReferencePattern = GetFileIdReferenceRegex();
+    public readonly static Regex AssetReferencePattern = GetAssetReferenceRegex();
+    public readonly static Regex AssetSubReferencePattern = GetAssetSubReferenceRegex();
+    public readonly static Regex ShaderNamePattern = GetShaderNameRegex();
     
     [GeneratedRegex(@"guid:\s(?<guid>[0-9A-Za-z]+)", RegexOptions.Compiled)]
     private static partial Regex GetGuidRegex();

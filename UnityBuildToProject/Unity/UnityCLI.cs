@@ -155,6 +155,10 @@ public static class UnityCLI {
         // finish
         AnsiConsole.MarkupLine($"Exit Code: {process.ExitCode}");
         
+        if (process.ExitCode != 0) {
+            throw new Exception($"ExitCode was {process.ExitCode}. Please refer to the log files to find the error!\n\n{Paths.LogsFolder}");
+        }
+        
         await Task.Delay(500);
     }
     
@@ -162,7 +166,6 @@ public static class UnityCLI {
         while (true) {
             await Task.Delay(100);
             
-            // todo: handle exit code
             if (process.HasExited) {
                 ctx.Status("Process has exited!");
                 AnsiConsole.MarkupLine("\n[green]Process exited![/]\n");
