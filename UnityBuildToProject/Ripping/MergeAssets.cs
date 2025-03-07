@@ -5,10 +5,9 @@ public static class MergeAssets {
     /// Attempts to merge 1:1 matching files to a singular file.
     /// Also makes sure to migrate the other file's guid to the original.
     /// </summary>
-    public static IEnumerable<GuidDatabaseMerge> Merge(string projectPath, GuidDatabase guidDb, RoslynDatabase typeDb) {
+    public static IEnumerable<GuidDatabaseMerge> Merge(GuidDatabase guidDb, RoslynDatabase typeDb) {
         // shaders
         return MergeShaders(guidDb, typeDb);
-            // .Concat(MergeAnimationClips(guidDb));
     }
     
     private static IEnumerable<GuidDatabaseMerge> MergeShaders(GuidDatabase guidDb, RoslynDatabase typeDb) {
@@ -46,8 +45,4 @@ public static class MergeAssets {
             }
         }
     }
-    
-    // private static IEnumerable<GuidDatabaseMerge> MergeAnimationClips(GuidDatabase guidDb) {
-    //     yield break;
-    // }
 }

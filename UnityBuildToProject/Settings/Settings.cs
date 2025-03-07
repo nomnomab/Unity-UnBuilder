@@ -30,6 +30,9 @@ public static class Settings {
     }
     
     public static void Save<T>(string savePath, T settings) {
+        var saveFolder = Path.GetDirectoryName(savePath);
+        Directory.CreateDirectory(saveFolder!);
+        
         var contents = TomletMain.TomlStringFrom(settings);
         File.WriteAllText(savePath, contents);
     }

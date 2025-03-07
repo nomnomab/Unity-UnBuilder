@@ -90,7 +90,8 @@ public static partial class Utility {
                 // copy all the files & replaces any files with the same name
                 var files = Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories)
                     .Where(x => !Path.GetFileName(x).StartsWith("UnitySourceGeneratedAssemblyMonoScriptTypes"))
-                    .Where(x => !fileBlacklist.Contains(x));
+                    .Where(x => !fileBlacklist.Contains(x))
+                    .Where(x => Path.GetFileName(x) != "AssemblyInfo.cs");
                 
                 foreach (var file in files) {
                     AnsiConsole.MarkupLine($"[grey]Copying[/] \"{ClampPathFolders(file, 4)}\" to \"{ClampPathFolders(targetPath, 4)}\"");

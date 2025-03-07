@@ -163,7 +163,7 @@ public static class AsyncProgram {
         );
         
         // merge all of the types into the AssetRipper project
-        var merge = MergeAssets.Merge(extractData.Config.ProjectRootPath, extractDb, extractTypes);
+        var merge = MergeAssets.Merge(extractDb, extractTypes);
         var guidsReplaced = RoslynDatabase.MergeInto(
             [extractDb, projectDb, builtinDb],
             [extractTypes, projectTypes, builtInTypes],

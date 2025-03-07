@@ -20,6 +20,15 @@ namespace Nomnom {
         }
         
         public static void OnLoad() {
+            Recompile();
+            EditorApplication.Exit(0);
+        }
+        
+        public static void OnLoadNoQuit() {
+            Recompile();
+        }
+        
+        public static void Recompile() {
 #if UNITY_2019_3_OR_NEWER
                 CompilationPipeline.RequestScriptCompilation();
 #elif UNITY_2017_1_OR_NEWER
@@ -30,7 +39,6 @@ namespace Nomnom {
 #endif
             
             AssetDatabase.Refresh();
-            EditorApplication.Exit(0);
         }
     }
 }
