@@ -23,8 +23,8 @@ public record ToolSettings {
         return Path.GetFileNameWithoutExtension(ProgramArgs.GameExecutablePath);
     }
     
-    public UnityPath GetUnityPath() {
-        var version = GameData.ProjectVersion.ToString();
+    public UnityPath GetUnityPath(string? version = null) {
+        version ??= GameData.ProjectVersion.ToString();
         return UnityPath.FromVersion(UnityInstalls, version);
     }
     

@@ -195,30 +195,49 @@ public record RoslynDatabase {
         Parallel.ForEach(files, File.Delete);
     }
     
-    public static HashSet<string> GetExclusionFiles(UnityGuid[] guids, GuidDatabase guidDb, RoslynDatabase typeDb) {
-        var exclusionFiles = new HashSet<string>(1024);
+    public static (HashSet<string> files, HashSet<string> folders) GetExclusionFiles(ToolSettings settings, UnityGuid[] guids, GuidDatabase guidDb, RoslynDatabase typeDb) {
+        var exclusionFiles   = new HashSet<string>(1024);
+        var exclusionFolders = new HashSet<string>(1024);
+        
+        // exclude any included package dll folder
+        var exportFolder = settings.ExtractData.Config.ProjectRootPath;
+        var scriptsFolder = Path.Combine(exportFolder, "Assets", "Scripts");
+        foreach (var dir in Directory.GetDirectories(scriptsFolder, "*", SearchOption.TopDirectoryOnly)) {
+            var name = Path.GetFileNameWithoutExtension(dir);
+            if (PackageAssociations.FindAssociationFromDll(name) != null || PackageAssociations.ExcludeNamesFromProject.Contains(name) || PackageAssociations.ExcludePrefixesFromProject.Any(name.StartsWith)) {
+                exclusionFolders.Add(dir);
+            }
+        }
+        
+        // exclude any folder that matches a plugins dll
+        var projectFolder = settings.ExtractData.GetProjectPath();
+        var pluginsFolder = Path.Combine(projectFolder, "Assets", "Plugins");
+        foreach (var dir in Directory.GetFiles(pluginsFolder, "*.dll", SearchOption.TopDirectoryOnly)) {
+            var name = Path.GetFileNameWithoutExtension(dir);
+            var nameDir = Path.Combine(scriptsFolder, name);
+            exclusionFolders.Add(nameDir);
+        }
+        
+        // exclude any mapped guids
         foreach (var guid in guids.Distinct()) {
             Console.WriteLine($"searching for {guid}:");
             
             if (guidDb.Assets.TryGetValue(guid, out var asset)) {
-                // Console.WriteLine($" - for asset: {Utility.ClampPathFolders(asset.FilePath, 6)}");
                 exclusionFiles.Add(asset.FilePath);
                 continue;
             }
             
             if (guidDb.AssociatedFilePaths.TryGetValue(guid, out var paths)) {
                 foreach (var path in paths) {
-                    // Console.WriteLine($" - for path: {Utility.ClampPathFolders(path, 6)}");
                     exclusionFiles.Add(path);
                 }
                 continue;
             }
-            
-            // Console.WriteLine($" - no file in dbs");
         }
         
-        return exclusionFiles;
+        return (exclusionFiles, exclusionFolders);
     }
+    
     public void WriteToDisk(string name) {
         File.Delete(name);
 

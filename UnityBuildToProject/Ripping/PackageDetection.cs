@@ -173,8 +173,10 @@ public sealed class PackageDetection {
                 return x.Item1;
             });
         
+        AnsiConsole.WriteLine($"package names: {string.Join('\n', packageNames)}");
+        
         Utility.CopyOverScript(tempProjectPath, "InstallPackages", x => {
-            return x
+            var newText = x
                 // to install
                 .Replace("#_PACKAGES_TO_INSTALL_", string.Join(",\n", 
                     packageNames.Select(x => $"\"{x}\"")
@@ -185,6 +187,9 @@ public sealed class PackageDetection {
                     PackageAssociations.ExcludeIds.Select(x => $"\"{x}\"")
                 ))
                 .Replace("#_PACKAGE_REMOVE_COUNT", PackageAssociations.ExcludeIds.Length.ToString());
+            
+            AnsiConsole.WriteLine(newText);
+            return newText;
         });
         
         AnsiConsole.MarkupLine("[yellow]Installing packages into project.[/]");
@@ -205,15 +210,8 @@ public sealed class PackageDetection {
         
         // then install the packages after
         var unityPath = settings.GetUnityPath();
-        await UnityCLI.OpenProjectWithArgs("Installing packages...", unityPath, tempProjectPath, 
-            true,
-            "-disable-assembly-updater",
-            "-silent-crashes",
-            "-batchmode",
-            "-logFile -",
-            "-executeMethod Nomnom.InstallPackages.OnLoad",
-            "-quit",
-            "| Write-Output"
+        await UnityCLI.OpenProjectHidden("Installing packages...", unityPath, true, tempProjectPath,
+            "-executeMethod Nomnom.InstallPackages.OnLoad"
         );
         
         if (packageTree.Has("com.unity.inputsystem")) {
@@ -321,11 +319,11 @@ public sealed class PackageDetection {
             if (dll == null) continue;
             
             var fileName = Path.GetFileNameWithoutExtension(dll);
-            if (PackageAssociations.ExcludePrefixes.Any(x => fileName.StartsWith(x))) {
+            if (PackageAssociations.ExcludePrefixesFromPackages.Any(x => fileName.StartsWith(x))) {
                 continue;
             }
             
-            if (PackageAssociations.ExcludeNames.Contains(fileName)) {
+            if (PackageAssociations.ExcludeNamesFromPackages.Contains(fileName)) {
                 continue;
             }
             

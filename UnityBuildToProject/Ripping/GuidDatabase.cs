@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using AssetRipper.SourceGenerated;
 using Spectre.Console;
 
 namespace Nomnom;
@@ -256,14 +257,16 @@ public record GuidDatabase {
                     if (first == null) continue;
                     
                     switch (first.ClassId) {
-                        case UnityClassId.MonoScript:
-                        case UnityClassId.AudioClip:
-                        case UnityClassId.MovieTexture:
-                        case UnityClassId.TextAsset:
-                        case UnityClassId.Texture2D:
-                        case UnityClassId.Texture2DArray:
-                        case UnityClassId.Texture3D:
-                        case UnityClassId.VideoClip:
+                        case ClassIDType.MonoScript:
+                        case ClassIDType.AudioClip:
+                        case ClassIDType.MovieTexture:
+                        case ClassIDType.TextAsset:
+                        case ClassIDType.Texture2D:
+                        case ClassIDType.Texture2DArray:
+                        case ClassIDType.Texture3D:
+                        case ClassIDType.VideoClip_327:
+                        case ClassIDType.VideoClip_329:
+                        case ClassIDType.BaseVideoTexture:
                         
                         // Console.WriteLine($" - cannot handle \"{first.ClassId}\"");
                         writer.WriteLine($" - cannot handle \"{first.ClassId}\"");

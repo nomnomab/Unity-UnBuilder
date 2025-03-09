@@ -4,6 +4,8 @@ using Spectre.Console;
 namespace Nomnom;
 
 public static class Paths {
+    public static string CurrentDirectory => Directory.GetCurrentDirectory();
+    
     public static string ExeFolder {
         get {
             var exePath = Assembly.GetEntryAssembly()?.Location;

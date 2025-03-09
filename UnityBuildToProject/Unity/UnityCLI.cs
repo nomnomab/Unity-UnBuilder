@@ -44,7 +44,7 @@ public static class UnityCLI {
     public static async Task OpenProjectHidden(string message, UnityPath unityPath, bool routeStd, string projectPath, params string[] args) {
         await OpenProjectWithArgs(message, unityPath, projectPath, routeStd, [
             "-disable-assembly-updater",
-            "-silent-crashes",
+            // "-silent-crashes",
             "-batchmode",
             "-nographics",
             "-logFile -", 
@@ -71,6 +71,19 @@ public static class UnityCLI {
         // open in the editor.
         await RunProcess(unityPath, message, routeStd, [
             $"-projectPath \"{projectPath}\"",
+            ..args
+        ]);
+    }
+    
+    public static async Task OpenProjectScene(string message, UnityPath unityPath, bool routeStd, string scenePath, params string[] args) {
+        if (!File.Exists(scenePath)) {
+            throw new FileNotFoundException(scenePath);
+        }
+        
+        // start the unity process and pass in the scene to
+        // open in the editor.
+        await RunProcess(unityPath, message, routeStd, [
+            $"-openfile \"{scenePath}\"",
             ..args
         ]);
     }

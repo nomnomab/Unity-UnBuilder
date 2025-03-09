@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using AssetRipper.SourceGenerated;
 
 namespace Nomnom;
 
@@ -174,7 +175,7 @@ public static partial class UnityAssetTypes {
             }
             
             var obj = new UnityObjectDefinition() {
-                ClassId          = (UnityClassId)classIdInt,
+                ClassId          = (ClassIDType)classIdInt,
                 FileId           = new UnityFileId(fileId),
                 AssetReferences  = [],
                 NestedReferences = [],

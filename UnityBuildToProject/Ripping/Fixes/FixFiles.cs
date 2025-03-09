@@ -10,15 +10,66 @@ public static class FixFiles {
     /// </summary>
     public static async Task CopyOverCustomFiles(ToolSettings settings) {
         var gameName      = settings.GetGameName();
+        
+        // copy from settings folder
         var saveFolder    = GameSettings.GetSaveFolder(gameName);
         var projectFolder = Path.Combine(saveFolder, "Project");
         
-        if (!Directory.Exists(projectFolder)) return;
+        if (Directory.Exists(projectFolder)) {
+            AnsiConsole.WriteLine($"Custom files found for {gameName}, copying over...");
+            
+            var targetFolder = settings.ExtractData.GetProjectPath();
+            await Utility.CopyFilesRecursivelyPretty(projectFolder, targetFolder);
+        }
         
-        AnsiConsole.WriteLine($"Custom files found for {gameName}, copying over...");
+        // copy from game settings
+        var gameSettings = settings.GameSettings;
+        projectFolder    = settings.ExtractData.GetProjectPath();
+        var assetsPath   = Path.Combine(projectFolder, "Assets");
+        foreach (var (from, to) in gameSettings.FileCopying.FilePaths ?? []) {
+            if (string.IsNullOrEmpty(from)) continue;
+            
+            var fromPath = Utility.ReplacePathModifier(settings, from);
+            var toPath   = string.IsNullOrEmpty(to) 
+                ? Path.Combine("Plugins", Path.GetFileName(from))
+                : to;
+            toPath       = Path.Combine(assetsPath, toPath);
+            
+            AnsiConsole.WriteLine($"Copying {fromPath, 4} to {Utility.ClampPathFolders(toPath, 4)}");
+            
+            if (!File.Exists(fromPath)) {
+                throw new FileNotFoundException(fromPath);
+            }
+            
+            var toPathFolder = Path.GetDirectoryName(toPath)!;
+            Directory.CreateDirectory(toPathFolder);
+            
+            File.Copy(fromPath, toPath);
+        }
+    }
+    
+    /// <summary>
+    /// Imports any .unitypackage from <c>/settings/[game name]/UnityPackages</c>
+    /// if available.
+    /// </summary>
+    public static async Task ImportCustomUnityPackages(ToolSettings settings) {
+        var gameName       = settings.GetGameName();
+        var saveFolder     = GameSettings.GetSaveFolder(gameName);
+        var packagesFolder = Path.Combine(saveFolder, "UnityPackages");
         
-        var targetFolder = settings.ExtractData.GetProjectPath();
-        await Utility.CopyFilesRecursivelyPretty(projectFolder, targetFolder);
+        if (!Directory.Exists(packagesFolder)) return;
+        
+        AnsiConsole.WriteLine($"Additional unity packages found for {gameName}, importing...");
+        
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var files       = Directory.GetFiles(packagesFolder, "*.unitypackage", SearchOption.TopDirectoryOnly);
+        foreach (var file in files) {
+            var unityPath = settings.GetUnityPath();
+            var name      = Path.GetFileName(file);
+            await UnityCLI.OpenProjectHidden($"Importing {name}", unityPath, true, projectPath,
+                $"-importPackage \"{file}\""
+            );
+        }
     }
     
     /// <summary>

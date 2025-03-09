@@ -1,4 +1,3 @@
-using CommandLine;
 using Spectre.Console;
 
 namespace Nomnom;
@@ -43,8 +42,12 @@ public static class AsyncProgram {
         settings.SetExtractPath(extractPath);
         settings.SetGameData(gameData);
         
+        // pre-check the unity installation
+        _ = settings.GetUnityPath();
+        
         // fetch the unity install path for later
-        var extractData      = await Extract.ExtractAssets(settings);
+        var extractData = await Extract.ExtractAssets(settings);
+        var projectPath = extractData.GetProjectPath();
         settings.SetExtractData(extractData);
         
         RoslynDatabase.RemoveAllNewFiles(extractData.Config.ProjectRootPath);
@@ -119,7 +122,7 @@ public static class AsyncProgram {
         );
         
         var projectDb = await ExtractGuids(
-            extractData.GetProjectPath(),
+            projectPath,
             "extract_guids_project",
             "Extracting guids for final project"
         );
@@ -143,7 +146,7 @@ public static class AsyncProgram {
         );
         
         var projectTypes = await ExtractTypes(
-            extractData.GetProjectPath(),
+            projectPath,
             "extract_types_project",
             "Extracting types for final project"
         );
@@ -169,11 +172,11 @@ public static class AsyncProgram {
             [extractTypes, projectTypes, builtInTypes],
             [.. merge]
         );
-        var exclusionFiles = RoslynDatabase.GetExclusionFiles(guidsReplaced, extractDb, extractTypes);
+        var (excludeFiles, excludeDirs) = RoslynDatabase.GetExclusionFiles(settings, guidsReplaced, extractDb, extractTypes);
         foreach (var m in merge) {
             if (extractDb.AssociatedFilePaths.TryGetValue(m.GuidFrom, out var paths)) {
                 foreach (var path in paths) {
-                    exclusionFiles.Add(path);
+                    excludeFiles.Add(path);
                 }
             }
         }
@@ -186,12 +189,12 @@ public static class AsyncProgram {
         );
         
         // copy over the project assets once processed
-        await extractData.CopyAssetsToProject(extractData.GetProjectPath(), exclusionFiles, testFoldersOnly: false);
+        await extractData.CopyAssetsToProject(projectPath, excludeFiles, excludeDirs, extractDb, testFoldersOnly: false);
         RoslynDatabase.RemoveAllNewFiles(extractData.Config.ProjectRootPath);
         
         // tidy up the project folders
-        ExtractData.RemoveEditorFolderFromProject(extractData.GetProjectPath());
-        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(settings.GameSettings, settings.ExtractData.GetProjectPath());
+        ExtractData.RemoveEditorFolderFromProject(projectPath);
+        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(settings.GameSettings, projectPath);
         ExtractData.RemoveLibraryFolders(extractData.Config.ProjectRootPath);
         
         await Profiling.End();
@@ -203,11 +206,11 @@ public static class AsyncProgram {
         
         LogFile.Header("Final steps");
         
-        ApplyFixes.FixBeforeRecompile(settings);
+        ApplyFixes.FixBeforeRecompile(settings, packageTree);
         
-        Utility.CopyOverScript(extractData.GetProjectPath(), "RecompileUnity");
+        Utility.CopyOverScript(projectPath, "RecompileUnity");
        
-        await UnityCLI.OpenProjectHidden("Opening project to recompile", unityPath, true, extractData.GetProjectPath(),
+        await UnityCLI.OpenProjectHidden("Opening project to recompile", unityPath, true, projectPath,
             "-executeMethod Nomnom.RecompileUnity.OnLoad"
         );
         
@@ -224,7 +227,22 @@ public static class AsyncProgram {
         await Profiling.End();
         
         // final project open
-        _ = UnityCLI.OpenProject("Opening project", unityPath, false, extractData.GetProjectPath());
+        if (settings.GameSettings.General.OpenScenePath is {} scenePath) {
+            scenePath = Path.Combine(projectPath, "Assets", scenePath);
+            if (!scenePath.EndsWith(".unity")) {
+                scenePath += ".unity";
+            }
+            
+            if (!File.Exists(scenePath)) {
+                AnsiConsole.MarkupLine($"[yellow]No scene found[/] at \"{scenePath}\"");
+                _ = UnityCLI.OpenProject("Opening project", unityPath, false, projectPath);
+            } else {
+                AnsiConsole.MarkupLine($"Opening scene at \"{scenePath}\"");
+                _ = UnityCLI.OpenProjectScene($"Opening project with scene \"{scenePath}\"", unityPath, false, scenePath);
+            }
+        } else {
+            _ = UnityCLI.OpenProject("Opening project", unityPath, false, projectPath);
+        }
     }
     
     private static async Task<GuidDatabase> ExtractGuids(string path, string name, string message) {

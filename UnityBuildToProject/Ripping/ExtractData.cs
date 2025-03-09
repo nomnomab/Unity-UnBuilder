@@ -9,14 +9,18 @@ using Tomlet.Attributes;
 namespace Nomnom;
 
 public record ExtractData {
-    private const string ProjectName = "Project";
+    // private const string ProjectName = "Out";
     
     public required string GameName;
+    public required string OutputFolder;
     public required GameData GameData;
     public required LibraryConfiguration Config;
     
     public string GetProjectPath() {
-        return Path.Combine(Config.ProjectRootPath, "..", $"{GameName}_{ProjectName}");
+        // return Path.Combine(Config.ProjectRootPath, "..", $"{GameName}_{ProjectName}");
+        // return Path.Combine(Paths.CurrentDirectory, $"{GameName}_{ProjectName}");
+        // return Path.Combine(OutputFolder);
+        return Path.Combine(OutputFolder, GameName);
     }
     
     public async Task<string> CreateNewProject(ProgramArgs args) {
@@ -67,9 +71,48 @@ public record ExtractData {
         return firstDlls.Union(secondDlls);
     }
     
-    public async Task CopyAssetsToProject(string secondProject, HashSet<string> fileBlacklist, bool testFoldersOnly) {
+    public async Task CopyAssetsToProject(string secondProject, HashSet<string> fileBlacklist, HashSet<string> folderBlacklist, GuidDatabase guidDb, bool testFoldersOnly) {
         var firstPath  = Config.AssetsPath;
         var secondPath = Path.Combine(secondProject, "Assets");
+        
+        // append to blacklist
+        var scriptsFolder = Path.Combine(firstPath, "Scripts");
+        
+        // exclude folders that match a dll name
+        foreach (var name in PackageAssociations.ExcludeNamesFromProject) {
+            AnsiConsole.WriteLine($"Checking exclusion for \"{name}\"");
+            foreach (var dir in Directory.GetDirectories(scriptsFolder, name, SearchOption.TopDirectoryOnly)) {
+                folderBlacklist.Add(dir);
+                fileBlacklist.Add(dir + ".meta");
+                AnsiConsole.WriteLine($" - excluding: \"{dir}\"");
+                
+                var files = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories);
+                foreach (var file in files) {
+                    fileBlacklist.Add(file);
+                    fileBlacklist.Add(file + ".meta");
+                    AnsiConsole.WriteLine($" - excluding: \"{file}\"");
+                }
+            }
+        }
+        
+        // exclude folders that start with a prefix
+        foreach (var name in PackageAssociations.ExcludePrefixesFromProject) {
+            AnsiConsole.WriteLine($"Checking exclusion for prefix \"{name}\"");
+            foreach (var dir in Directory.GetDirectories(scriptsFolder, $"{name}*", SearchOption.TopDirectoryOnly)) {
+                folderBlacklist.Add(dir);
+                fileBlacklist.Add(dir + ".meta");
+                AnsiConsole.WriteLine($" - excluding: \"{dir}\"");
+                
+                var files = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories);
+                foreach (var file in files) {
+                    fileBlacklist.Add(file);
+                    fileBlacklist.Add(file + ".meta");
+                    AnsiConsole.WriteLine($" - excluding: \"{file}\"");
+                }
+            }
+        }
+        
+        // todo: exclude scripts that are no Assembly-CSharp and do not have references
         
         AnsiConsole.WriteLine($"Copying project folders to \"{secondProject}\"");
         
@@ -103,20 +146,16 @@ public record ExtractData {
                 await Utility.CopyAssets(
                     Path.Combine(firstPath, folder), 
                     Path.Combine(secondPath, folder),
-                    fileBlacklist
+                    fileBlacklist, folderBlacklist
                 );
                 await Task.Delay(50);
             }
         } else {
-            await Utility.CopyAssets(firstPath, secondPath, fileBlacklist);
+            await Utility.CopyAssets(firstPath, secondPath, fileBlacklist, folderBlacklist);
         }
             
         AnsiConsole.MarkupLine("[green]Finished[/] copying folders to the temp project!");
     }
-    
-    // public static void DeduplicateAssets(string projectPath) {
-    //     // for now just do shaders
-    // }
     
     public static void RemoveExistingPackageFoldersFromProjectScripts(GameSettings gameSettings, string projectPath) {
         AnsiConsole.MarkupLine($"[red]Deleting[/] existing package folders from \"{projectPath}\"");
@@ -127,7 +166,7 @@ public record ExtractData {
                 var scriptsFolder = Path.Combine(projectPath, "Assets", "Scripts");
                 var folders       = Directory.GetDirectories(scriptsFolder);
                 var fileOverrides = gameSettings.FileOverrides;
-                var filesToKeep   = fileOverrides.ProjectPaths.Select(x => x.Path)
+                var filesToKeep   = (fileOverrides.ProjectPaths ?? []).Select(x => x.Path)
                     .ToHashSet();
                 
                 foreach (var dir in folders) {

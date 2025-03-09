@@ -4,11 +4,26 @@ public static class ApplyFixes {
     public static async Task FixBeforeGuids(ToolSettings settings) {
         await FixTextMeshPro.ImportTextMeshProEssentials(settings);
         await FixFiles.CopyOverCustomFiles(settings);
+        await FixFiles.ImportCustomUnityPackages(settings);
         // FixFiles.FixMissingGuids(gameSettings, extractData);
     }
 
-    public static void FixBeforeRecompile(ToolSettings settings) {
+    public static void FixBeforeRecompile(ToolSettings settings, PackageTree? packageTree) {
+        if (packageTree != null) {
+            if (packageTree.Find("com.unity.netcode.gameobjects") != null) {
+                FixUnityNGO.RevertGeneratedCode(settings);
+            }
+        }
         
+        // todo: extract this game specific
+        FixTextures.FixFormat(settings.ExtractData.GetProjectPath(), null, x => {
+            var name = Path.GetFileNameWithoutExtension(x);
+            if (name.StartsWith("LDR_RGB")) {
+                return AssetRipper.SourceGenerated.Enums.TextureFormat.RGB24;
+            }
+            
+            return null;
+        });
     }
     
     public static async Task FixAfterRecompile(ToolSettings settings, PackageTree? packageTree) {

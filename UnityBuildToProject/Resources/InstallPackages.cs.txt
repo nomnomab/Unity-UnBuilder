@@ -57,30 +57,35 @@ namespace Nomnom {
             EditorApplication.Exit(0);
         }
         
-#if UNITY_2021_3_OR_NEWER
-        static AddAndRemoveRequest Request;
+// #if UNITY_2021_3_OR_NEWER
+//         static AddAndRemoveRequest Request;
 
-        // >= 2021.3
-        private static void Execute() {
-            Request = Client.AddAndRemove(
-                _toAdd.ToArray(),
-                _toRemove.ToArray()
-            );
+//         // >= 2021.3
+//         private static void Execute() {
+//             Request = Client.AddAndRemove(
+//                 _toAdd.ToArray(),
+//                 _toRemove.ToArray()
+//             );
             
-            while (!Request.IsCompleted) { }
+//             while (!Request.IsCompleted) { }
             
-            Debug.Log("Status: " + Request.Status);
+//             Debug.Log("Status: " + Request.Status);
                 
-            if (Request.Status == StatusCode.Success) {
-                // installed package
-            } else if (Request.Status >= StatusCode.Failure) {
-                Debug.LogWarning(Request.Error.message);
-            }
+//             if (Request.Status == StatusCode.Success) {
+//                 // installed package
+                
+//                 var result = Request.Result;
+//                 foreach (var package in result) {
+//                     Debug.Log($"name: {package.name}");
+//                 }
+//             } else if (Request.Status >= StatusCode.Failure) {
+//                 throw new Exception("Failed to install packages!\n" + Request.Error.errorCode + "\n" + Request.Error.message);
+//             }
             
-            Request = null;
-        }
+//             Request = null;
+//         }
         
-#else
+// #else
         static AddRequest    AddRequest;
         static RemoveRequest RemoveRequest;
         
@@ -117,6 +122,7 @@ namespace Nomnom {
                 
                 if (RemoveRequest.Status == StatusCode.Success) {
                     // removed package
+                    Debug.Log("Added: " + name);
                 } else if (RemoveRequest.Status >= StatusCode.Failure) {
                     Debug.LogWarning(RemoveRequest.Error.message);
                 }
@@ -124,6 +130,6 @@ namespace Nomnom {
                 RemoveRequest = null;
             }
         }
-#endif
+// #endif
     }
 }

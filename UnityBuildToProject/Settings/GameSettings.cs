@@ -2,10 +2,11 @@ using Tomlet.Attributes;
 
 namespace Nomnom;
 
-
 public record GameSettings {
+    public required GeneralSettings General { get; set; }
     public required PackageOverrides PackageOverrides { get; set; }
     public required FileOverrides FileOverrides { get; set; }
+    public required FileCopying FileCopying { get; set; }
     
     public static string GetGameName(string gameName) {
         return gameName.Replace(" ", "_")
@@ -39,18 +40,30 @@ public record GameSettings {
     }
     
     public static readonly GameSettings Default = new() {
-        // ExtractSettings  = null,
+        General = new() {
+            OpenScenePath = null,
+        },
         PackageOverrides = new() {
-            Packages = []
+            Packages     = []
         },
         FileOverrides = new() {
             ProjectPaths = [],
+            Exclusions   = [],
+        },
+        FileCopying = new() {
+            FilePaths    = [],
         }
     };
     
     public static GameSettings? Load(string gameName) {
         var savePath = GetSavePath(gameName);
-        var settings = Settings.Load(savePath, Default, null);
+        var settings = Settings.Load(savePath, Default, x => {
+            var defaultValue = Default;
+            x.General          ??= defaultValue.General;
+            x.PackageOverrides ??= defaultValue.PackageOverrides;
+            x.FileOverrides    ??= defaultValue.FileOverrides;
+            x.FileCopying      ??= defaultValue.FileCopying;
+        });
         
         return settings;
     }
@@ -79,8 +92,37 @@ public record FileOverrides {
 You really only need to do this for things like custom scripts inside of an internal package namespace folder.
 
 Each entry is in the format of:
-{ Path = ""Asset/FileOrFolder"" },")]
-    public required FileOverride[] ProjectPaths = [];
+{ Path = ""Assets/FileOrFolder"" },")]
+    public FileOverride[]? ProjectPaths = [];
+    
+    [TomlPrecedingComment(@"Files and folders that will NOT be included in the final project.
+
+Each entry is in the format of:
+{ Path = ""Assets/FileOrFolder"" },
+
+Or in the format of this to exclude files with a prefix:
+{ Path = ""Assets/File.*"" },")]
+    public FileOverride[]? Exclusions = [];
 }
 
 public record FileOverride(string Path);
+
+public record FileCopying {
+    [TomlPrecedingComment(@"Files that will be copied to the project.
+
+Tags can be used to indicate locations:
+> $DATA$    : Game/Game_Data/
+> $MANAGED$ : Game/Game_Data/Managed
+> $PLUGINS$ : Game/Game_Data/Plugins
+
+Each entry is in the format of:
+{ PathFrom = ""Path/To/File"", PathTo = ""Assets/File"" },")]
+    public required FileCopy[] FilePaths = [];
+}
+
+public record FileCopy(string PathFrom, string PathTo);
+
+public record GeneralSettings {
+    [TomlPrecedingComment(@"The path to the scene file to open on completion.")]
+    public required string? OpenScenePath { get; set; }
+}

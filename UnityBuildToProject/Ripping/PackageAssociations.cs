@@ -10,6 +10,10 @@ public record PackageInfo {
 
 public static class PackageAssociations {
     public static PackageInfo? FindAssociationFromDll(string dllName) {
+        if (dllName.EndsWith(".dll")) {
+            dllName = dllName[..^".dll".Length];
+        }
+        
         foreach (var package in Packages) {
             if (package.DllNames.Contains(dllName)) {
                 return package;
@@ -46,14 +50,25 @@ public static class PackageAssociations {
         "Unity.ResourceManager",
     ];
     
-    public static readonly string[] ExcludePrefixes = [
+    public static readonly string[] ExcludePrefixesFromPackages = [
         "System",
-        // "Mono.",
         "Assembly-CSharp",
-        "Unity.InternalAPIEngineBridge"
+        "Unity.InternalAPIEngineBridge",
+        "FacePunch",
+        "Unity.Services.",
     ];
     
-    public static readonly string[] ExcludeNames = [
+    public static readonly string[] ExcludePrefixesFromProject = [
+        "System",
+        "Unity.InternalAPIEngineBridge",
+        "FacePunch",
+        "Mono.",
+        "UnityEngine.",
+        "Unity.",
+        "Newtonsoft.Json"
+    ];
+    
+    public static readonly string[] ExcludeNamesFromPackages = [
         "mscorlib",
         "netstandard",
         "UnityEngine",
@@ -72,7 +87,13 @@ public static class PackageAssociations {
         "Unity.Rider.Editor",
         "Boo.Lang",
         "UnityScript.Lang",
-        "dfScriptLite"
+        "dfScriptLite",
+        "UnityEngine.NVIDIAModule"
+    ];
+    
+    public static readonly string[] ExcludeNamesFromProject = [
+        .. ExcludeNamesFromPackages,
+        "ClientNetworkTransform",
     ];
     
     public static readonly string[] ExcludeIds = [
@@ -212,6 +233,13 @@ public static class PackageAssociations {
             Id = "com.unity.modules.animation",
             DllNames = ["UnityEngine.AnimationModule"]
         },
+        new () {
+            Id = "com.unity.animation.rigging",
+            DllNames = [
+                "Unity.Animation.Rigging",
+                "Unity.Animation.Rigging.DocCodeExamples"
+            ]
+        },
         new() {
             Id = "com.unity.modules.video",
             DllNames = ["UnityEngine.VideoModule"]
@@ -288,12 +316,6 @@ public static class PackageAssociations {
             ]
         },
         new() {
-            Id = "com.unity.shadergraph",
-            DllNames = [
-                "Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary"
-                ]
-        },
-        new() {
             Id = "com.unity.render-pipelines.universal",
             DllNames = [
                 "Unity.RenderPipelines.Universal.Config.Runtime",
@@ -301,6 +323,19 @@ public static class PackageAssociations {
                 "Unity.RenderPipelines.Universal.Shaders",
                 "Unity.RenderPipeline.Universal.ShaderLibrary"
             ]
+        },
+        new () {
+            Id = "com.unity.render-pipelines.high-definition",
+            DllNames = [
+                "Unity.RenderPipelines.HighDefinition.Config.Runtime",
+                "Unity.RenderPipelines.HighDefinition.Runtime"
+            ]
+        },
+        new() {
+            Id = "com.unity.shadergraph",
+            DllNames = [
+                "Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary"
+                ]
         },
         new() {
             Id = "com.unity.burst",
@@ -360,6 +395,13 @@ public static class PackageAssociations {
         new() {
             Id = "com.unity.scriptablebuildpipeline",
             DllNames = ["Unity.ScriptableBuildPipeline"]
+        },
+        new() {
+            Id = "com.unity.netcode.gameobjects",
+            DllNames = [
+                "Unity.Netcode.Runtime",
+                "Unity.Networking.Transport"
+            ]
         },
     }
         .OrderBy(x => x.Id)];

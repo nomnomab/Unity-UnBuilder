@@ -25,7 +25,7 @@ public static class Settings {
             verify(settings);
         }
         
-        Save(savePath, settings);
+        // Save(savePath, settings);
         return settings;
     }
     

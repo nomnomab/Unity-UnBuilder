@@ -62,11 +62,18 @@ public static partial class Utility {
         AnsiConsole.MarkupLine("[green]Done[/] copying!");
     }
     
-    public static async Task CopyAssets(string sourcePath, string targetPath, HashSet<string> fileBlacklist) {
+    public static async Task CopyAssets(string sourcePath, string targetPath, HashSet<string> fileBlacklist, HashSet<string> folderBlacklist) {
         AnsiConsole.MarkupLine($"Copying assets from \"{sourcePath}\" to \"{targetPath}\"...");
         
+        fileBlacklist   = [.. fileBlacklist.Select(Path.GetFullPath)];
+        folderBlacklist = [.. folderBlacklist.Select(Path.GetFullPath)];
+        
         foreach (var file in fileBlacklist) {
-            Console.WriteLine($" - without: {file}");
+            Console.WriteLine($" - without file: {file}");
+        }
+        
+        foreach (var folder in folderBlacklist) {
+            Console.WriteLine($" - without folder: {folder}");
         }
         
         await AnsiConsole.Status()
@@ -77,7 +84,16 @@ public static partial class Utility {
                 // create all of the directories
                 var directories = Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories);
                 foreach (var dirPath in directories) {
-                    AnsiConsole.MarkupLine($"[grey]Copying[/] \"{dirPath}\" to \"\"{targetPath}");
+                    if (folderBlacklist.Contains(dirPath)) {
+                        AnsiConsole.WriteLine($"in blacklist: {dirPath}");
+                        continue;
+                    }
+                    
+                    if (folderBlacklist.Any(y => dirPath.StartsWith(y))) {
+                        continue;
+                    }
+                    
+                    AnsiConsole.WriteLine($"Copying \"{dirPath}\" to \"\"{targetPath}");
                     
                     var dir = dirPath.Replace(sourcePath, targetPath);
                     Directory.CreateDirectory(dir);
@@ -90,11 +106,12 @@ public static partial class Utility {
                 // copy all the files & replaces any files with the same name
                 var files = Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories)
                     .Where(x => !Path.GetFileName(x).StartsWith("UnitySourceGeneratedAssemblyMonoScriptTypes"))
+                    .Where(x => !folderBlacklist.Any(y => x.StartsWith(y)))
                     .Where(x => !fileBlacklist.Contains(x))
                     .Where(x => Path.GetFileName(x) != "AssemblyInfo.cs");
                 
                 foreach (var file in files) {
-                    AnsiConsole.MarkupLine($"[grey]Copying[/] \"{ClampPathFolders(file, 4)}\" to \"{ClampPathFolders(targetPath, 4)}\"");
+                    AnsiConsole.WriteLine($"Copying \"{ClampPathFolders(file, 4)}\" to \"{ClampPathFolders(targetPath, 4)}\"");
                     
                     // generic scripts tend to have this
                     if (file.Contains('`')) continue;
@@ -134,7 +151,7 @@ public static partial class Utility {
                                 normalName + ".new"
                             );
                             
-                            Console.WriteLine($"new assetPath: {assetPath}\nassetNewPath: {assetNewPath}");
+                            AnsiConsole.WriteLine($"new assetPath: {assetPath}\nassetNewPath: {assetNewPath}");
                             
                             if (!File.Exists(assetPath) && !File.Exists(assetNewPath)) {
                                 continue;
@@ -159,7 +176,7 @@ public static partial class Utility {
                                 Path.GetFileNameWithoutExtension(file) + ".new"
                             );
                             
-                            Console.WriteLine($"not new assetPath: {assetPath}\nassetNewPath: {assetNewPath}");
+                            AnsiConsole.WriteLine($"not new assetPath: {assetPath}\nassetNewPath: {assetNewPath}");
                             
                             if (!File.Exists(assetPath) && !File.Exists(assetNewPath)) {
                                 continue;
@@ -252,6 +269,25 @@ public static partial class Utility {
         }
         
         return path[(index + 1)..];
+    }
+    
+    public static string ReplacePathModifier(ToolSettings settings, string text) {
+        var dataPath = settings.BuildPath.GetDataFolder();
+        if (dataPath != null) {
+            text = text.Replace("$DATA$", dataPath.FullName);
+        }
+        
+        var managedPath = settings.BuildPath.GetManagedFolder();
+        if (managedPath != null) {
+            text = text.Replace("$MANAGED$", managedPath.FullName);
+        }
+        
+        var pluginsPath = settings.BuildPath.GetPluginsFolder();
+        if (pluginsPath != null) {
+            text = text.Replace("$PLUGINS$", pluginsPath.FullName);
+        }
+        
+        return text;
     }
 
     [GeneratedRegex(@"^(?<base>.+?)(?:_\d+)((?:\.[^.]+)+)$", RegexOptions.IgnoreCase, "en-US")]

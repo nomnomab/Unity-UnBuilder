@@ -35,9 +35,9 @@ The main goal of this project is to make a better version of my prior build->pro
 - [x] Game-specific config for overrides
     - [ ] Override AssetRipper options
     - [x] Override package versioning
-    - [ ] Change package manifest?
-- [ ] Animation clips can be duplicated and break if gotten via name in code
-- [ ] Some legacy axis can just not be in the build I guess?
+    - [x] Change package manifest?
+- [x] Animation clips can be duplicated and break if gotten via name in code
+- [x] Some legacy axis can just not be in the build I guess?
     Having to re-define multiple of them manually.
 - [ ] Decompiled shaders have to be manually cleaned up as well, clean up common cases?
 - [ ] Making an asmdefref for specific package folders
@@ -67,19 +67,25 @@ The main goal of this project is to make a better version of my prior build->pro
 - [x] 2017 can't use package SearchAll
 - [x] Custom Legacy input axis
 - [x] Can copy Project files into project entirely
+    - [x] Folder to install unity packages from
+    - [ ] Pre-guid and post-guid folder?
 - [x] Move files as a post-fix to fix things like AnimationClip names expecting
       something that is no longer there
+- [ ] Copy over Assembly-CSharp and any scripts that have a replacement, like what
+      shaders do
+- [x] First extract shader stubs, then do another extract just for shaders.
+      Then keep the ones that have meta files.
+- [ ] Windows paths longer than 260 cause problems
 
 ## Games Tested With
 Stable:
 - Lunacid
 - Toree3D
-    - Input System fails to grab all axis so have to manually make dx, dy, cx, cy, LB, RB
 
 Unstable:
-- 
+- n/a
 
-Can't Compile Yet:
+Can't compile yet:
 - Risk of Rain 2
     - ReWired
 - SuperKiwi64
@@ -88,6 +94,7 @@ Can't Compile Yet:
 - Enter the Gungeon
     - 2017
     - ReWired
+    - Uses UnityScript :/
 - Rain World
     - ReWired
 - Magicite
@@ -95,6 +102,7 @@ Can't Compile Yet:
     - Shaders aren't matching
     - Uses UnityScript :/
 
-Untested on this Version:
+Untested on this version:
 - Lethal Company
+    - Works on old version
 - Content Warning

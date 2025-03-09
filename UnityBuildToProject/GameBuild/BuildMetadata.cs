@@ -59,7 +59,7 @@ public record BuildPath(string exePath) {
         
         // grab the file name since the [root]/*_Data folder
         var file = GetFile();
-        var name = file.Name;
+        var name = Path.GetFileNameWithoutExtension(file.Name);
         var dataPath = $"{name}_Data";
         
         var path = Path.Join(
@@ -82,6 +82,23 @@ public record BuildPath(string exePath) {
         var path = Path.Join(
             dataFolder.FullName,
             "Managed"
+        );
+        
+        return new DirectoryInfo(path);
+    }
+    
+    /// <summary>
+    /// Returns the path to the build's [root]/*_Data/Plugins folder.
+    /// </summary>
+    public DirectoryInfo? GetPluginsFolder() {
+        var dataFolder = GetDataFolder();
+        if (dataFolder == null) {
+            return null;
+        }
+        
+        var path = Path.Join(
+            dataFolder.FullName,
+            "Plugins"
         );
         
         return new DirectoryInfo(path);

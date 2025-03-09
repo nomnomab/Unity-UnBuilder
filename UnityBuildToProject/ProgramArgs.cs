@@ -6,6 +6,9 @@ public class ProgramArgs {
     [Option('p', "game_path", Required = true, HelpText = "The path to the Unity game's executable (.exe).")]
     public required string GameExecutablePath { get; set; }
     
+    [Option('o', "output_path", Required = true, HelpText = "The path to the output folder that will have the final project. A new folder will be created within this for the specific game.")]
+    public required string OutputPath { get; set; }
+    
     [Option('s', "skip_ar", HelpText = "Skips the AssetRipper stage. Useful if you already exported the project.")]
     public bool SkipAssetRipper { get; set; }
     

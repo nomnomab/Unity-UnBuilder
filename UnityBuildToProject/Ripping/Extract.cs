@@ -8,6 +8,15 @@ namespace Nomnom;
 
 public static class Extract {
     public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(ToolSettings settings, string? customPath, bool process) {
+        return ExtractGameData(
+            settings.AppSettings.ExtractSettings,
+            settings.BuildMetadata,
+            customPath,
+            process
+        );
+    }
+    
+    public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(ExtractSettings? extractSettings, BuildMetadata buildMetadata, string? customPath, bool process) {
         var config = new LibraryConfiguration();
         config.LoadFromDefaultPath();
         
@@ -15,7 +24,6 @@ public static class Extract {
             config.ExportRootPath = customPath;
         }
         
-        var extractSettings = settings.AppSettings.ExtractSettings;
         if (extractSettings != null) {
             config.ImportSettings.ScriptContentLevel             = extractSettings.ScriptContentLevel;
             config.ImportSettings.StreamingAssetsMode            = extractSettings.StreamingAssetsMode;
@@ -36,7 +44,7 @@ public static class Extract {
         }
         
         var exportHandler = new ExportHandler(config);
-        var inputPath     = settings.BuildMetadata.Path.exePath;
+        var inputPath     = buildMetadata.Path.exePath;
         var gameData      = process ? exportHandler.LoadAndProcess([
             inputPath
         ]) : exportHandler.Load([
@@ -55,11 +63,50 @@ public static class Extract {
             Logger.Add(new ExtractLogger());
         }
         
+        string? shadersRoot = null;
+        if(!settings.ProgramArgs.SkipAssetRipper) {
+            // extract the dummy shaders
+            // this also extracts the models since I have no way to disable it
+            shadersRoot = await ExtractDecompiledShaders(settings);
+            
+            await Task.Delay(1000);
+        }
+        
+        // extract the normal content
+        var extractData = await ExtractAll(settings);
+        
+        Logger.Clear();
+        
+        if (shadersRoot != null) {
+            // copy over shaders that have a meta file associated!
+            var fromPath = Path.Combine(shadersRoot, "ExportedProject", "Assets");
+            var toPath   = Path.Combine(extractData.Config.ProjectRootPath, "Assets");
+            var shaders  = Directory.GetFiles(fromPath, "*.shader", SearchOption.AllDirectories);
+            foreach (var shader in shaders) {
+                var newPath = shader.Replace(fromPath, toPath);
+                var dir     = Path.GetDirectoryName(newPath);
+                Directory.CreateDirectory(dir!);
+                
+                File.Copy(shader, newPath, true);
+                
+                AnsiConsole.WriteLine($"Copied:\nfrom:{Utility.ClampPathFolders(shader, 6)}\nto: {Utility.ClampPathFolders(newPath, 6)}");
+            }
+            
+            // remove the shaders root
+            await Paths.DeleteDirectory(shadersRoot);
+        }
+        
+        // this holds the information about the build folder
+        return extractData;
+    }
+    
+    private static async Task<ExtractData> ExtractAll(ToolSettings settings) {
         var (config, gameData, exportHandler) = ExtractGameData(settings, null, true);
         var extractData = new ExtractData() {
-            GameName = settings.BuildMetadata.GetName(),
-            GameData = gameData,
-            Config   = config
+            GameName     = settings.BuildMetadata.GetName(),
+            OutputFolder = settings.ProgramArgs.OutputPath,
+            GameData     = gameData,
+            Config       = config
         };
         
         await Task.Delay(1000);
@@ -72,10 +119,8 @@ public static class Extract {
             await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Aesthetic)
                 .StartAsync("Exporting...", 
-                async ctx => await WaitForAssetRipper(ctx, settings.ExtractPath, exportHandler, gameData)
+                async ctx => await WaitForAssetRipper(ctx, "Exporting...", settings.ExtractPath.folderPath, exportHandler, gameData)
             );
-            
-            Logger.Clear();
         } else {
             extractData.Config.ExportRootPath = settings.ExtractPath.folderPath;
             
@@ -86,43 +131,84 @@ public static class Extract {
         }
         
         PrintLibraryConfiguration(config, false);
-        
-        // this holds the information about the build folder
         return extractData;
     }
     
-    // public static async Task DecompileShaders(BuildMetadata buildMetadata, ExtractPath extractPath) {
-    //     AnsiConsole.MarkupLine("[underline]Extracting shaders...[/]");
+    private static async Task<string> ExtractDecompiledShaders(ToolSettings settings) {
+        var (config, gameData, exportHandler) = ExtractGameData(settings, null, true);
         
-    //     // log with the specific one below
-    //     Logger.Clear();
-    //     Logger.Add(new ExtractLogger());
+        var shadersOutputRoot       = settings.ExtractPath.folderPath + "_shaders";
+        var decompiledShadersConfig = new LibraryConfiguration {
+            ExportSettings = new() {
+                ScriptExportMode            = ScriptExportMode.DllExportWithoutRenaming,
+                ShaderExportMode            = ShaderExportMode.Decompile,
+                AudioExportFormat           = AudioExportFormat.Yaml,
+                TextExportMode              = TextExportMode.Bytes,
+                SpriteExportMode            = SpriteExportMode.Yaml,
+                LightmapTextureExportFormat = LightmapTextureExportFormat.Yaml,
+            },
+            ImportSettings = new() {
+                ScriptContentLevel    = AssetRipper.Import.Configuration.ScriptContentLevel.Level0,
+                StreamingAssetsMode   = AssetRipper.Import.Configuration.StreamingAssetsMode.Ignore,
+                IgnoreStreamingAssets = true,
+            },
+            ProcessingSettings = new() {
+                EnableAssetDeduplication   = false,
+                EnablePrefabOutlining      = false,
+                EnableStaticMeshSeparation = false,
+            },
+        };
+        var extractData = new ExtractData() {
+            GameName     = settings.BuildMetadata.GetName(),
+            OutputFolder = settings.ProgramArgs.OutputPath,
+            GameData     = gameData,
+            Config       = decompiledShadersConfig
+        };
         
-    //     var tmpConfig = new LibraryConfiguration();
-    //     tmpConfig.LoadFromDefaultPath();
-    //     var exportRootPath  = Path.Combine(tmpConfig.ExportRootPath, "..", "ExportedShaders");
-    //     var extractSettings = ExtractSettings.Disabled;
-    //     var (config, gameData, exportHandler) = ExtractGameData(extractSettings, exportRootPath, buildMetadata, true);
+        await Task.Delay(1000);
         
-    //     PrintLibraryConfiguration(config, false);
-        
-    //     await Task.Delay(1000);
-        
-    //     // starts a thread to export with AssetRipper
-    //     // and waits for it to finish or fail
-    //     await AnsiConsole.Status()
-    //         .Spinner(Spinner.Known.Aesthetic)
-    //         .StartAsync("Exporting...", 
-    //         async ctx => await WaitForAssetRipper(ctx, extractPath, exportHandler, gameData)
-    //     );
-        
-    //     Logger.Clear();
-    // }
-    
-    static async Task WaitForAssetRipper(StatusContext ctx, ExtractPath extractPath, ExportHandler exportHandler, GameData gameData) {
-        var task = Task.Run(async () => {
-            var outputPath = extractPath.folderPath;
+        if(!settings.ProgramArgs.SkipAssetRipper) {
+            PrintLibraryConfiguration(decompiledShadersConfig, false);
             
+            // starts a thread to export with AssetRipper
+            // and waits for it to finish or fail
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Aesthetic)
+                .StartAsync("Decompiling shaders...", 
+                async ctx => await WaitForAssetRipper(ctx, "Decompiling shaders...", shadersOutputRoot, exportHandler, gameData)
+            );
+            
+            await Task.Delay(1000);
+        } else {
+            extractData.Config.ExportRootPath = settings.ExtractPath.folderPath;
+        }
+        
+        // move the shaders outside
+        var rootAbove = Path.Combine(shadersOutputRoot, "..", "decompiled_shaders");
+        var shaders  = Directory.GetFiles(shadersOutputRoot, "*.shader", SearchOption.AllDirectories);
+        foreach (var shader in shaders) {
+            // if a shader file properly decompiled, it will have a meta file
+            var metaFile = shader + ".meta";
+            if (!File.Exists(metaFile)) {
+                continue;
+            }
+            
+            var newPath = shader.Replace(shadersOutputRoot, rootAbove);
+            var dir     = Path.GetDirectoryName(newPath);
+            Directory.CreateDirectory(dir!);
+            
+            File.Copy(shader, newPath, true);
+            
+            AnsiConsole.WriteLine($"Copied:\nfrom:{Utility.ClampPathFolders(shader, 6)}\nto: {Utility.ClampPathFolders(newPath, 6)}");
+        }
+        
+        await Paths.DeleteDirectory(shadersOutputRoot);
+        
+        return rootAbove;
+    }
+    
+    static async Task WaitForAssetRipper(StatusContext ctx, string message, string outputPath, ExportHandler exportHandler, GameData gameData) {
+        var task = Task.Run(async () => {
             // remove the previous rip
             var dllsPath = Path.Combine(outputPath, "AuxiliaryFiles");
             if (Directory.Exists(dllsPath)) {
@@ -147,7 +233,7 @@ public static class Extract {
             }
             
             if (!task.IsCompleted) {
-                ctx.Status("Exporting...");
+                ctx.Status(message);
                 continue;
             }
             
