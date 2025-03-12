@@ -9,9 +9,13 @@ public static class FixInputSystem {
         var projectPath = extractData.GetProjectPath();
         var file        = Utility.CopyOverScript(projectPath, "FixInputSystemActions");
             
-        await UnityCLI.OpenProject("Fixing the Input System", unityPath, false, extractData.GetProjectPath(),
-            "-executeMethod Nomnom.FixInputSystemActions.Fix",
-            "-quit"
+        // await UnityCLI.OpenProject("Fixing the Input System", unityPath, false, extractData.GetProjectPath(),
+        //     "-executeMethod Nomnom.FixInputSystemActions.Fix",
+        //     "-quit"
+        // );
+        
+        await UnityCLI.OpenProjectHidden("Fixing the Input System", unityPath, true, extractData.GetProjectPath(),
+            "-executeMethod Nomnom.FixInputSystemActions.Fix"
         );
         
         File.Delete(file);

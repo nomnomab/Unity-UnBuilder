@@ -71,7 +71,7 @@ public record ExtractData {
         return firstDlls.Union(secondDlls);
     }
     
-    public async Task CopyAssetsToProject(string secondProject, HashSet<string> fileBlacklist, HashSet<string> folderBlacklist, GuidDatabase guidDb, bool testFoldersOnly) {
+    public async Task CopyAssetsToProject(ToolSettings settings, string secondProject, HashSet<string> fileBlacklist, HashSet<string> folderBlacklist, GuidDatabase guidDb, bool testFoldersOnly) {
         var firstPath  = Config.AssetsPath;
         var secondPath = Path.Combine(secondProject, "Assets");
         
@@ -85,13 +85,6 @@ public record ExtractData {
                 folderBlacklist.Add(dir);
                 fileBlacklist.Add(dir + ".meta");
                 AnsiConsole.WriteLine($" - excluding: \"{dir}\"");
-                
-                var files = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories);
-                foreach (var file in files) {
-                    fileBlacklist.Add(file);
-                    fileBlacklist.Add(file + ".meta");
-                    AnsiConsole.WriteLine($" - excluding: \"{file}\"");
-                }
             }
         }
         
@@ -102,17 +95,32 @@ public record ExtractData {
                 folderBlacklist.Add(dir);
                 fileBlacklist.Add(dir + ".meta");
                 AnsiConsole.WriteLine($" - excluding: \"{dir}\"");
-                
-                var files = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories);
-                foreach (var file in files) {
-                    fileBlacklist.Add(file);
-                    fileBlacklist.Add(file + ".meta");
-                    AnsiConsole.WriteLine($" - excluding: \"{file}\"");
-                }
             }
         }
         
-        // todo: exclude scripts that are no Assembly-CSharp and do not have references
+        folderBlacklist.Add(
+            Path.Combine(firstPath, "ComputeShader")
+        );
+        
+        foreach (var folder in folderBlacklist) {
+            if (!Directory.Exists(folder)) continue;
+            var files = Directory.GetFiles(folder, "*.*", SearchOption.AllDirectories);
+            foreach (var file in files) {
+                var realFile = Path.GetFullPath(file);
+                fileBlacklist.Add(realFile);
+                fileBlacklist.Add(realFile + ".meta");
+                AnsiConsole.WriteLine($" - excluding: \"{realFile}\"");
+            }
+        }
+        
+        // keep safe files around
+        foreach (var safeFile in GetSafeExportPaths(settings)) {
+            AnsiConsole.WriteLine($" - accepting \"{safeFile}\"");
+            AnsiConsole.WriteLine($" - accepting \"{safeFile}.meta\"");
+            
+            fileBlacklist.Remove(safeFile);
+            fileBlacklist.Remove(safeFile + ".meta");
+        }
         
         AnsiConsole.WriteLine($"Copying project folders to \"{secondProject}\"");
         
@@ -133,7 +141,7 @@ public record ExtractData {
                 "Scenes",
                 "Resources",
                 "Plugins",
-                "ComputeShader",
+                // "ComputeShader",
                 "Editor"
             };
             
@@ -146,18 +154,75 @@ public record ExtractData {
                 await Utility.CopyAssets(
                     Path.Combine(firstPath, folder), 
                     Path.Combine(secondPath, folder),
-                    fileBlacklist, folderBlacklist
+                    fileBlacklist
                 );
                 await Task.Delay(50);
             }
         } else {
-            await Utility.CopyAssets(firstPath, secondPath, fileBlacklist, folderBlacklist);
+            await Utility.CopyAssets(firstPath, secondPath, fileBlacklist);
         }
             
         AnsiConsole.MarkupLine("[green]Finished[/] copying folders to the temp project!");
     }
     
-    public static void RemoveExistingPackageFoldersFromProjectScripts(GameSettings gameSettings, string projectPath) {
+    public static IEnumerable<string> GetSafeExportPaths(ToolSettings settings) {
+        var rootPath    = settings.ExtractData.Config.ProjectRootPath;
+        return GetSafePaths(settings, rootPath);
+    }
+    
+    public static IEnumerable<string> GetSafePaths(ToolSettings settings, string rootPath) {
+        var projectPath = FixFiles.GetSettingsProjectFolder(settings);
+        
+        if (Directory.Exists(projectPath)) {
+            var dirs = Directory.GetDirectories(projectPath, "*.*", SearchOption.AllDirectories);
+            foreach (var dir in dirs) {
+                var files = Directory.GetFiles(projectPath, "*.*", SearchOption.AllDirectories);
+                foreach (var file in files) {
+                    var newPath = file.Replace(
+                        projectPath,
+                        rootPath
+                    );
+                    
+                    yield return newPath;
+                }
+            }
+            
+            {
+                var files = Directory.GetFiles(projectPath, "*.*", SearchOption.AllDirectories);
+                foreach (var file in files) {
+                    var newPath = file.Replace(
+                        projectPath,
+                        rootPath
+                    );
+                    
+                    yield return newPath;
+                }
+            }
+        }
+        
+        // todo: update to new stuff
+        // foreach (var file in settings.GameSettings.FileOverrides.ProjectPaths ?? []) {
+        //     var path = Path.GetFullPath(
+        //         Path.Combine(rootPath, file.Path)
+        //     );
+            
+        //     if (Directory.Exists(path)) {
+        //         var files = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories);
+        //         foreach (var file2 in files) {
+        //             var newPath = file2.Replace(
+        //                 projectPath,
+        //                 rootPath
+        //             );
+                    
+        //             yield return newPath;
+        //         }
+        //     } else {
+        //         yield return path;
+        //     }
+        // }
+    }
+    
+    public static void RemoveExistingPackageFoldersFromProjectScripts(ToolSettings settings, string projectPath) {
         AnsiConsole.MarkupLine($"[red]Deleting[/] existing package folders from \"{projectPath}\"");
         
         AnsiConsole.Status()
@@ -165,9 +230,11 @@ public record ExtractData {
             .Start("...", ctx => {
                 var scriptsFolder = Path.Combine(projectPath, "Assets", "Scripts");
                 var folders       = Directory.GetDirectories(scriptsFolder);
-                var fileOverrides = gameSettings.FileOverrides;
-                var filesToKeep   = (fileOverrides.ProjectPaths ?? []).Select(x => x.Path)
-                    .ToHashSet();
+                var safePaths     = GetSafePaths(settings, projectPath).ToArray();
+                
+                foreach (var path in safePaths) {
+                    AnsiConsole.WriteLine($"safe path: {path}");
+                }
                 
                 foreach (var dir in folders) {
                     var name = Path.GetFileName(dir);
@@ -194,15 +261,24 @@ public record ExtractData {
                     var dirFiles   = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories);
                     var deletedAll = true;
                     foreach (var file in dirFiles) {
-                        var localPath = Path.Combine(file[(projectPath.Length + 1)..])
-                            .Replace('\\', '/');
-                        if (filesToKeep.Contains(localPath) || filesToKeep.Any(x => localPath.StartsWith(x))) {
-                            Console.WriteLine($" - keeping {localPath}");
+                        // var localPath = Path.Combine(file[(projectPath.Length + 1)..])
+                        //     .Replace('\\', '/');
+                        // if (safeFiles.Contains(localPath) || safeFiles.Any(x => localPath.StartsWith(x))) {
+                        //     Console.WriteLine($" - keeping {localPath}");
+                        //     deletedAll = false;
+                        //     continue;
+                        // }
+                        
+                        // Console.WriteLine($" - deleted {localPath}");
+                        // File.Delete(file);
+                        
+                        if (safePaths.Contains(file) || safePaths.Any(x => file.StartsWith(x))) {
+                            Console.WriteLine($" - keeping {file}");
                             deletedAll = false;
                             continue;
                         }
                         
-                        Console.WriteLine($" - deleted {localPath}");
+                        Console.WriteLine($" - deleted {file}");
                         File.Delete(file);
                     }
                     
@@ -231,7 +307,7 @@ public record ExtractData {
         if (!Directory.Exists(libraryFolder)) return;
         
         AnsiConsole.MarkupLine($"[red]Deleting[/] Library folder from \"{projectPath}\"");
-        Directory.Delete(libraryFolder);
+        Directory.Delete(libraryFolder, true);
     }
 }
 

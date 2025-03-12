@@ -1,5 +1,4 @@
-
-using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
 
 namespace Nomnom;
 
@@ -114,7 +113,9 @@ public record RoslynDatabase {
         
         var logFile = Path.Combine(Paths.LogsFolder, "merge_into.log");
         File.Delete(logFile);
+        
         using (var writer = new StreamWriter(logFile)) {
+            // merge types
             foreach (var merge in merges) {
                 writer.WriteLine($"checking merge\n{merge}");
                 
@@ -148,10 +149,11 @@ public record RoslynDatabase {
                 }
                 
                 // override!
-                toReplace.Add(new GuidDatabaseMerge(guidFrom, guidTo));
-                writer.WriteLine($"toReplace.Add:\n - {merge}\n - {new GuidDatabaseMerge(guidFrom, guidTo)}");
+                toReplace.Add(new GuidDatabaseMerge(guidFrom, guidTo, null, null));
+                writer.WriteLine($"toReplace.Add:\n - {merge}\n - {new GuidDatabaseMerge(guidFrom, guidTo, null, null)}");
             }
             
+            // merge guids
             foreach (var merge in toReplace) {
                 // find things that use the original guid
                 writer.WriteLine($"{merge.GuidFrom} to {merge.GuidTo}");
@@ -167,10 +169,11 @@ public record RoslynDatabase {
                 }
             }
             
+            // merge additional guids
             foreach (var replace in additionalReplacements) {
                 var existing = toReplace.FirstOrDefault(x => x.GuidFrom == replace.GuidTo);
                 if (existing != null) {
-                    var newReplace = new GuidDatabaseMerge(replace.GuidFrom, existing.GuidTo);
+                    var newReplace = new GuidDatabaseMerge(replace.GuidFrom, existing.GuidTo, null, null);
                     writer.WriteLine($"[exists]\nfrom: {replace}\nto: {newReplace}");
                     toReplace.Add(newReplace);
                 } else {
@@ -202,20 +205,24 @@ public record RoslynDatabase {
         // exclude any included package dll folder
         var exportFolder = settings.ExtractData.Config.ProjectRootPath;
         var scriptsFolder = Path.Combine(exportFolder, "Assets", "Scripts");
-        foreach (var dir in Directory.GetDirectories(scriptsFolder, "*", SearchOption.TopDirectoryOnly)) {
-            var name = Path.GetFileNameWithoutExtension(dir);
-            if (PackageAssociations.FindAssociationFromDll(name) != null || PackageAssociations.ExcludeNamesFromProject.Contains(name) || PackageAssociations.ExcludePrefixesFromProject.Any(name.StartsWith)) {
-                exclusionFolders.Add(dir);
+        if (Directory.Exists(scriptsFolder)) {
+            foreach (var dir in Directory.GetDirectories(scriptsFolder, "*", SearchOption.TopDirectoryOnly)) {
+                var name = Path.GetFileNameWithoutExtension(dir);
+                if (PackageAssociations.FindAssociationFromDll(name) != null || PackageAssociations.ExcludeNamesFromProject.Contains(name) || PackageAssociations.ExcludePrefixesFromProject.Any(name.StartsWith)) {
+                    exclusionFolders.Add(dir);
+                }
             }
         }
         
         // exclude any folder that matches a plugins dll
         var projectFolder = settings.ExtractData.GetProjectPath();
         var pluginsFolder = Path.Combine(projectFolder, "Assets", "Plugins");
-        foreach (var dir in Directory.GetFiles(pluginsFolder, "*.dll", SearchOption.TopDirectoryOnly)) {
-            var name = Path.GetFileNameWithoutExtension(dir);
-            var nameDir = Path.Combine(scriptsFolder, name);
-            exclusionFolders.Add(nameDir);
+        if (Directory.Exists(pluginsFolder)) {
+            foreach (var dir in Directory.GetFiles(pluginsFolder, "*.dll", SearchOption.TopDirectoryOnly)) {
+                var name = Path.GetFileNameWithoutExtension(dir);
+                var nameDir = Path.Combine(scriptsFolder, name);
+                exclusionFolders.Add(nameDir);
+            }
         }
         
         // exclude any mapped guids
@@ -233,6 +240,22 @@ public record RoslynDatabase {
                 }
                 continue;
             }
+        }
+        
+        foreach (var path in settings.GameSettings.FileOverrides.Exclusions ?? []) {
+            var finalPath = Path.GetFullPath(
+                Path.Combine(exportFolder, path.Path)
+            );
+            
+            if (Directory.Exists(finalPath)) {
+                var files = Directory.GetFiles(finalPath, "*.*", SearchOption.AllDirectories);
+                foreach (var file in files) {
+                    exclusionFiles.Add(file);
+                }
+            }
+            
+            exclusionFiles.Add(finalPath);
+            exclusionFiles.Add(finalPath + ".meta");
         }
         
         return (exclusionFiles, exclusionFolders);

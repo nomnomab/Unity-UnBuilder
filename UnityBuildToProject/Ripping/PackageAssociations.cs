@@ -65,7 +65,8 @@ public static class PackageAssociations {
         "Mono.",
         "UnityEngine.",
         "Unity.",
-        "Newtonsoft.Json"
+        "Newtonsoft.Json",
+        "FishNet."
     ];
     
     public static readonly string[] ExcludeNamesFromPackages = [
@@ -94,6 +95,8 @@ public static class PackageAssociations {
     public static readonly string[] ExcludeNamesFromProject = [
         .. ExcludeNamesFromPackages,
         "ClientNetworkTransform",
+        "Pathfinding.Ionic.Zip.Reduced",
+        "AstarPathfindingProject"
     ];
     
     public static readonly string[] ExcludeIds = [
@@ -403,16 +406,37 @@ public static class PackageAssociations {
                 "Unity.Networking.Transport"
             ]
         },
+        new() {
+            Id = "com.unity.2d.animation",
+            DllNames = [
+                "Unity.2D.Animation.Runtime",
+                "Unity.2D.IK.Runtime"
+            ]
+        },
+        new() {
+            Id = "com.unity.2d.common",
+            DllNames = ["Unity.2D.Common.Runtime"]
+        },
+        new() {
+            Id = "com.unity.2d.pixel-perfect",
+            DllNames = ["Unity.2D.PixelPerfect"]
+        },
+        new() {
+            Id = "com.unity.2d.tilemap.extras",
+            DllNames = ["Unity.2D.Tilemap.Extras"]
+        }
     }
         .OrderBy(x => x.Id)];
 }
 
 public record PackageTree {
     public required List<PackageTreeNode> Nodes = [];
+    public required string[] Dlls = [];
     
-    public static PackageTree Build(IEnumerable<PackageInfo> packages, UnityPackages versionPackages) {
+    public static PackageTree Build(IEnumerable<PackageInfo> packages, ExtractData extractData, UnityPackages versionPackages) {
         var tree = new PackageTree() {
-            Nodes    = [],
+            Nodes = [],
+            Dlls  = [.. PackageDetection.GetGameAssemblies(extractData)],
         };
         
         var workingPackages = packages.Where(x => !PackageAssociations.ExcludeIds.Contains(x.Id))
@@ -518,22 +542,6 @@ public record PackageTree {
         }
         
         return null;
-        
-        // finds a node that matches the id
-        // static PackageTreeNode? _Find(string id, PackageTreeNode node) {
-        //     if (node.Info.Id == id) {
-        //         return node;
-        //     }
-            
-        //     foreach (var child in node.Children) {
-        //         var found = _Find(id, child);
-        //         if (found != null) {
-        //             return found;
-        //         }
-        //     }
-            
-        //     return null;
-        // }
     }
     
     public void Remove(string id) {
@@ -541,24 +549,8 @@ public record PackageTree {
             var node = Nodes[i];
             if (node.Info.Id == id) {
                 Nodes.RemoveAt(i);
-                return;
             }
-            
-            // _Find(id, node);
         }
-        
-        // finds a node that matches the id
-        // static void _Find(string id, PackageTreeNode node) {
-        //     for (int i = 0; i < node.Children.Count; i++) {
-        //         var child = node.Children[i];
-        //         if (child.Info.Id == id) {
-        //             node.Children.RemoveAt(i);
-        //             return;
-        //         }
-                
-        //         _Find(id, child);
-        //     }
-        // }
     }
     
     public IEnumerable<(string, string)> GetList() {
@@ -573,10 +565,6 @@ public record PackageTree {
             if (childNode != null) {
                 yield return (childNode.Info.Id, childNode.Version);
             }
-            
-            // foreach (var c in GetList(child)) {
-            //     yield return c;
-            // }
         }
     }
     

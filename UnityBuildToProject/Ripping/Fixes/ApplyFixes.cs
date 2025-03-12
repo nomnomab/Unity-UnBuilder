@@ -13,6 +13,25 @@ public static class ApplyFixes {
             if (packageTree.Find("com.unity.netcode.gameobjects") != null) {
                 FixUnityNGO.RevertGeneratedCode(settings);
             }
+            
+            // todo: do this per-game instead?
+            if (packageTree.Dlls.Contains("AK.Wwise.Unity.API")) {
+                FixFiles.FixAmbiguousUsages(settings, [
+                    (
+                        ["AK.Wwise", "UnityEngine"],
+                        "using Event = AK.Wwise.Event;"
+                    ),
+                ]);
+            }
+            
+            if (packageTree.Dlls.Contains("ParticleImage")) {
+                FixFiles.FixAmbiguousUsages(settings, [
+                    (
+                        ["AssetKits.ParticleImage.Enumerations", "UnityEngine"],
+                        "using PlayMode = AssetKits.ParticleImage.Enumerations.PlayMode;"
+                    ),
+                ]);
+            }
         }
         
         // todo: extract this game specific
@@ -24,6 +43,9 @@ public static class ApplyFixes {
             
             return null;
         });
+        
+        FixFiles.FixAssetNames(settings);
+        FixFiles.CleanupDeadMetaFiles(settings);
     }
     
     public static async Task FixAfterRecompile(ToolSettings settings, PackageTree? packageTree) {

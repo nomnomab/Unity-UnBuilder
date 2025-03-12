@@ -116,12 +116,14 @@ public static class AsyncProgram {
         
         // process the guids between the projects
         var extractDb = await ExtractGuids(
+            settings,
             extractData.Config.ProjectRootPath,
             "extract_guids_asset_ripper",
             "Extracting guids for AssetRipper project"
         );
         
         var projectDb = await ExtractGuids(
+            settings,
             projectPath,
             "extract_guids_project",
             "Extracting guids for final project"
@@ -129,6 +131,7 @@ public static class AsyncProgram {
         
         var unityPath = settings.GetUnityPath();
         var builtinDb = versionGT2018 ? await ExtractGuids(
+            settings,
             unityPath.GetBuiltInPackagesPath(),
             "extract_guids_built_in",
             "Extracting guids for built-in packages"
@@ -136,6 +139,7 @@ public static class AsyncProgram {
             Assets              = [],
             AssociatedFilePaths = [],
             FilePathToGuid      = [],
+            DllReferences       = [],
         };
         
         // process the types between the projects
@@ -150,6 +154,8 @@ public static class AsyncProgram {
             "extract_types_project",
             "Extracting types for final project"
         );
+        
+        await GuidMapping.ExtractDllGuids(settings, projectDb, projectTypes, projectPath);
         
         var builtInTypes = versionGT2018 ? await ExtractTypes(
             unityPath.GetBuiltInPackagesPath(),
@@ -166,7 +172,25 @@ public static class AsyncProgram {
         );
         
         // merge all of the types into the AssetRipper project
-        var merge = MergeAssets.Merge(extractDb, extractTypes);
+        var merge = MergeAssets.Merge(extractDb, extractTypes).ToList();
+        
+        // merge guids to any dll refs
+        foreach (var dll in projectDb.DllReferences) {
+            // find the type from the first typedb that maps to the one in the dll
+            // then replace with the guid from the dll + the fileId from the ref
+            if (extractTypes.FullNameToFilePath.TryGetValue(dll.TypeName, out var filePath)) {
+                if (extractDb.FilePathToGuid.TryGetValue(filePath, out var guid)) {
+                    // this is the guid that needs to be replaced
+                    merge.Add(new GuidDatabaseMerge(
+                        guid,
+                        dll.Ref.Guid,
+                        dll.Ref.FileId,
+                        dll.Ref.Type
+                    ));
+                }
+            }
+        }
+        
         var guidsReplaced = RoslynDatabase.MergeInto(
             [extractDb, projectDb, builtinDb],
             [extractTypes, projectTypes, builtInTypes],
@@ -189,12 +213,12 @@ public static class AsyncProgram {
         );
         
         // copy over the project assets once processed
-        await extractData.CopyAssetsToProject(projectPath, excludeFiles, excludeDirs, extractDb, testFoldersOnly: false);
+        await extractData.CopyAssetsToProject(settings, projectPath, excludeFiles, excludeDirs, extractDb, testFoldersOnly: false);
         RoslynDatabase.RemoveAllNewFiles(extractData.Config.ProjectRootPath);
         
         // tidy up the project folders
         ExtractData.RemoveEditorFolderFromProject(projectPath);
-        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(settings.GameSettings, projectPath);
+        ExtractData.RemoveExistingPackageFoldersFromProjectScripts(settings, projectPath);
         ExtractData.RemoveLibraryFolders(extractData.Config.ProjectRootPath);
         
         await Profiling.End();
@@ -245,9 +269,9 @@ public static class AsyncProgram {
         }
     }
     
-    private static async Task<GuidDatabase> ExtractGuids(string path, string name, string message) {
+    private static async Task<GuidDatabase> ExtractGuids(ToolSettings settings, string path, string name, string message) {
         Profiling.Begin(name, message);
-        var db = await GuidMapping.ExtractGuids(path);
+        var db = await GuidMapping.ExtractGuids(settings, path);
         await Profiling.End();
         
         return db;

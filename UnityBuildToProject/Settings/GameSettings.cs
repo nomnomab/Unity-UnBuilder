@@ -44,7 +44,8 @@ public record GameSettings {
             OpenScenePath = null,
         },
         PackageOverrides = new() {
-            Packages     = []
+            Packages            = [],
+            ImportUnityPackages = [],
         },
         FileOverrides = new() {
             ProjectPaths = [],
@@ -82,9 +83,17 @@ Each entry is in the format of:
 
 A version of ""no"" will exclude the package if it is included.")]
     public required PackageOverride[] Packages = [];
+    
+    [TomlPrecedingComment(@"Import .unitypackage files from the project path.
+
+Each entry is in the format of:
+{ Path = ""Assets/File.unitypackage"", },")]
+    public required ImportUnityPackage[] ImportUnityPackages = [];
 }
 
 public record PackageOverride(string Id, string? Version);
+
+public record ImportUnityPackage(string Path);
 
 public record FileOverrides {
     [TomlPrecedingComment(@"Files and folders that will make sure to be included in the final project.

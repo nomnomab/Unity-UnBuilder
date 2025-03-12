@@ -72,7 +72,7 @@ public sealed class PackageDetection {
         var failedPackages = new List<string>();
         
         // fetch from game assemblies
-        foreach (var name in GetGameAssemblies()) {
+        foreach (var name in GetGameAssemblies(_extractData)) {
             var package = PackageAssociations.FindAssociationFromDll(name);
             if (package == null) {
                 failedPackages.Add(name);
@@ -98,7 +98,7 @@ public sealed class PackageDetection {
         AnsiConsole.Write(failedPanel);
         
         // build a dependency tree
-        var packageTree = PackageTree.Build(foundPackages, versionPackages);
+        var packageTree = PackageTree.Build(foundPackages, _extractData, versionPackages);
         
         // for now make sure there is always newtonsoft json included
         if (packageTree.Find("com.unity.nuget.newtonsoft-json") == null) {
@@ -154,6 +154,12 @@ public sealed class PackageDetection {
                     Children = []
                 });
             }
+        }
+        
+        // remove packages that have no dll specifically
+        var dlls = GetGameAssemblies(_extractData);
+        if (!dlls.Any(x => PackageAssociations.FindAssociationFromDll(x)?.Id == "com.unity.inputsystem")) {
+            packageTree.Remove("com.unity.inputsystem");
         }
     }
     
@@ -310,8 +316,8 @@ public sealed class PackageDetection {
         File.WriteAllText(manifestPath, newJson);
     }
     
-    public IEnumerable<string> GetGameAssemblies() {
-        var extractRootPath    = _extractData.Config.AuxiliaryFilesPath;
+    public static IEnumerable<string> GetGameAssemblies(ExtractData extractData) {
+        var extractRootPath    = extractData.Config.AuxiliaryFilesPath;
         var gameAssembliesPath = Path.Combine(extractRootPath, "GameAssemblies");
         var dlls               = Directory.GetFiles(gameAssembliesPath, "*.dll", SearchOption.TopDirectoryOnly);
         
@@ -337,7 +343,7 @@ public class PackageManfiest {
 }
 
 public class UnityPackages {
-    public UnityPackage[]? Packages { get; set; }
+    public List<UnityPackage>? Packages { get; set; }
     
     public UnityPackage? FindById(string id) {
         return Packages?.FirstOrDefault(x => {

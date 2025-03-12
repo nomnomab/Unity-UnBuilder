@@ -20,13 +20,6 @@ public static class FixTextMeshPro {
             Path.Combine(tmpPath, "Package Resources", "TMP Essential Resources.unitypackage")
         );
         
-        if (!File.Exists(packagePath)) {
-            throw new FileNotFoundException(packagePath);
-        }
-        
-        var unityPath = settings.GetUnityPath();
-        await UnityCLI.OpenProjectHidden("Fixing TextMeshPro", unityPath, true, settings.ExtractData.GetProjectPath(),
-            $"-importPackage \"{packagePath}\""
-        );
+        await FixFiles.ImportUnityPackage(settings, packagePath);
     }
 }

@@ -33,17 +33,15 @@ The main goal of this project is to make a better version of my prior build->pro
 ## Other
 
 - [x] Game-specific config for overrides
-    - [ ] Override AssetRipper options
+    - [?] Override AssetRipper options
     - [x] Override package versioning
     - [x] Change package manifest?
 - [x] Animation clips can be duplicated and break if gotten via name in code
 - [x] Some legacy axis can just not be in the build I guess?
     Having to re-define multiple of them manually.
-- [ ] Decompiled shaders have to be manually cleaned up as well, clean up common cases?
+- [x] Decompiled shaders have to be manually cleaned up as well, clean up common cases?
 - [ ] Making an asmdefref for specific package folders
     Probably assign in game specific settings
-- [ ] Assign LocalizationSettings if available and installed
-    - [ ] Fetch localization tables
 - [ ] Rename files entirely after the fact, such as txt -> csv
 - [x] Fix new input system asset files
     - [x] Proper file extension
@@ -61,7 +59,7 @@ The main goal of this project is to make a better version of my prior build->pro
     Something wrong with the package itself?
 - [x] TextMeshPro needs to import the "essentials" unitypackage
 - [x] Figure out what is duplicating assets :/
-- [ ] Migrate my old Unity Network package fixer for games like Lethal Company
+- [x] Migrate my old Unity Network package fixer for games like Lethal Company
 - [x] Ignore files with `1 in them
 - [ ] Handle assets like ReWired being weird
 - [x] 2017 can't use package SearchAll
@@ -71,38 +69,77 @@ The main goal of this project is to make a better version of my prior build->pro
     - [ ] Pre-guid and post-guid folder?
 - [x] Move files as a post-fix to fix things like AnimationClip names expecting
       something that is no longer there
-- [ ] Copy over Assembly-CSharp and any scripts that have a replacement, like what
+- [?] Copy over Assembly-CSharp and any scripts that have a replacement, like what
       shaders do
 - [x] First extract shader stubs, then do another extract just for shaders.
       Then keep the ones that have meta files.
 - [ ] Windows paths longer than 260 cause problems
+- [x] Match SO m_Name to its file name
+- [ ] Scripts from DLLs aren't discovered
+- [ ] Wwise
+    - [x] Files with `using AK.Wwise;` and `using UnityEngine;` need to replace all `Event` with `AK.Wwise.Event`
+    - [ ] Wwise missing DLLs, maybe need to install wwise through normal methods first
+- [ ] InputSystem still sometimes doesn't get enabled properly and gives the prompt
+- [x] Lone meta files can break existing guids
+- [ ] Baked meshes just show black
+- [x] Add GameSettings for importing additional .unitypackage
+- [ ] Assign LocalizationSettings if available and installed
+    - [ ] Fetch localization tables
+- [ ] Fix Localization tables
+    - [ ] Set localization settings asset in project settings
+    - [ ] Attach to Locale SOs in Localization folder
+    - [ ] Remove duplicate locales in Project Settings
+    - [ ] Make new collection for lang tables
+    - [ ] Swap locales with new ones
+- [ ] package `ExcludePrefixesFromProject` from GameSettings
+- [ ] package `ExcludeNamesFromProject` from GameSettings
+- [ ] FishNet de-generator
+- [ ] Some SOs are generating empty
 
 ## Games Tested With
 Stable:
 - Lunacid
 - Toree3D
+- SuperKiwi64
+    - Baked meshes show black
+
+In Progress:
+- Lethal Company
+    - Steam specific stuff isn't mapping properly sometimes
+    - Some input action refs aren't mapping properly
+    - Scripts from DLLs aren't discovered
+- FlipWitch
+    - Wwise missing DLLs
+- Gun Frog
+    - FlatKit asset for shaders (paid)
+    - StylizedWater asset for shaders (paid)
+    - CartoonGrass asset for shaders (paid)
+    - Localization tables are broken
+- Outpath
+    - AStar Free
+    - FishNet
+        - Needs de-generator
+    - UI Particle Image (paid)
+- Risk of Rain 2
+    - ReWired (paid)
+- Rain World
+    - ReWired (paid)
+- Idea Fix
+    - Localization tables are broken
+    - Some SOs are generating empty
 
 Unstable:
 - n/a
 
 Can't compile yet:
-- Risk of Rain 2
-    - ReWired
-- SuperKiwi64
-    - AssetRipper fails to decompile shaders
-    - Bad package version now
 - Enter the Gungeon
     - 2017
-    - ReWired
+    - ReWired (paid)
     - Uses UnityScript :/
-- Rain World
-    - ReWired
 - Magicite
     - Unity 5
     - Shaders aren't matching
     - Uses UnityScript :/
 
 Untested on this version:
-- Lethal Company
-    - Works on old version
 - Content Warning

@@ -161,7 +161,7 @@ public static class UnityCLI {
         
         await AnsiConsole.Status()
             .Spinner(Spinner.Known.Aesthetic)
-            .StartAsync(message, 
+            .StartAsync(message.Replace('[', '_').Replace(']', '_'), 
             async ctx => await WaitForProcess(ctx, process)
         );
         

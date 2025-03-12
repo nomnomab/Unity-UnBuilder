@@ -68,10 +68,11 @@ public static partial class RoslynUtility {
             yield break;
         }
         
-        using var reader = new StreamReader(filePath);
-        var text         = reader.ReadToEnd();
+        var text = string.Empty;
+        using (var reader = new StreamReader(filePath)) {
+            text         = reader.ReadToEnd();
+        }
         text             = RemovePreprocessDefinesRegex.Replace(text, string.Empty);
-        // var sourceText   = SourceText.From(reader.BaseStream);
         var sourceText   = SourceText.From(text);
         var tree         = CSharpSyntaxTree.ParseText(sourceText, ParseOptions, path: filePath);
         var root         = tree.GetRoot();
@@ -81,7 +82,6 @@ public static partial class RoslynUtility {
         
         foreach (var type in types) {
             var name = GetFullyQualifiedName(type, namespacePartsCache);
-            // Console.WriteLine($" - name: {name}");
             
             // only cares about Mono-esque types where it inherits
             // and matches the file name
@@ -100,10 +100,6 @@ public static partial class RoslynUtility {
            
             yield return name;
         }
-        
-        // if (!types.Any()) {
-        //      Console.WriteLine(" - no types found");
-        // }
     }
     
     private static bool IsPartialType(BaseTypeDeclarationSyntax type) {

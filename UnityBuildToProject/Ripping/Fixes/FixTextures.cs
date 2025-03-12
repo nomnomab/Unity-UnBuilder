@@ -12,11 +12,14 @@ public static class FixTextures {
             ".jpeg"
         ];
         
-        var assets = Path.Combine(projectPath, "Assets");
+        var assets   = Path.Combine(projectPath, "Assets");
         var textures = Directory.GetFiles(assets, "*.*", System.IO.SearchOption.AllDirectories)
             .Where(x => extensions.Contains(Path.GetExtension(x)));
         
+        var sb = new StringBuilder();
         foreach (var texture in textures) {
+            sb.Clear();
+            
             var format = predicate(texture);
             if (format == null) continue;
             
@@ -29,7 +32,6 @@ public static class FixTextures {
             // then the first 'textureFormat'
             var foundPlatformSettings = false;
             var fixedTexture          = false;
-            var sb                    = new StringBuilder();
             using (var reader = new StreamReader(file)) {
                 while (reader.Peek() >= 0) {
                     // read lines
@@ -37,7 +39,7 @@ public static class FixTextures {
                     if (line == null) continue;
                     
                     if (foundPlatformSettings && line.Trim().StartsWith("textureFormat:")) {
-                        var prefix = line.TrimStart();
+                        var prefix = Utility.GetLeadingWhitespace(line);
                         line = $"{prefix}textureFormat: {(int)format}";
                         fixedTexture = true;
                         sb.AppendLine(line);

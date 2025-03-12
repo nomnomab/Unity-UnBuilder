@@ -41,7 +41,7 @@ public static class MergeAssets {
                 Console.WriteLine($" - guid: {guid} @ {Utility.ClampPathFolders(same, 6)}");
                 // guidDb.AddAssociatedGuid(guid, same);
                 
-                yield return new GuidDatabaseMerge(guid, mainGuid);
+                yield return new GuidDatabaseMerge(guid, mainGuid, null, null);
             }
         }
     }

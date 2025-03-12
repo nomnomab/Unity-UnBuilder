@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using AssetRipper.SourceGenerated;
-using Spectre.Console;
 
 namespace Nomnom;
 
@@ -11,15 +10,15 @@ public record GuidDatabase {
     public required Dictionary<UnityGuid, AssetFile> Assets { get; set; }
     public required Dictionary<string, UnityGuid> FilePathToGuid { get; set; }
     public required Dictionary<UnityGuid, HashSet<string>> AssociatedFilePaths { get; set; }
+    public required HashSet<UnityDllReference> DllReferences { get; set; }
     
     public static GuidDatabase Parse(string folderPath) {
         var db = new GuidDatabase() {
             Assets              = [],
             FilePathToGuid      = [],
             AssociatedFilePaths = [],
+            DllReferences       = [],
         };
-        
-        // todo: split into tasks
         
         var files                 = GetFiles(folderPath);
         var dbAssets              = new ConcurrentDictionary<UnityGuid, AssetFile>();
@@ -289,16 +288,47 @@ public record GuidDatabase {
     private static void ReplaceGuidInFile(string filePath, IEnumerable<GuidDatabaseMerge> guids, StreamWriter writer) {
         File.Delete($"{filePath}.new");
         
-        var contents = File.ReadAllText(filePath);
+        // var contents = File.ReadAllText(filePath);
         var count    = 0;
+        
         // todo: do this line by line instead!
-        foreach (var pair in guids) {
-            // Console.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
-            writer.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
-            contents = contents.Replace(pair.GuidFrom.Value, pair.GuidTo.Value);
-            count++;
+        var lines = File.ReadAllLines(filePath);
+        for (int i = 0; i < lines.Length; i++) {
+            var line = lines[i];
+            
+            // check if this contains a guid
+            foreach (var guid in guids) {
+                if (line.Contains(guid.GuidFrom.Value)) {
+                    if (guid.FileIdTo != null) {
+                        writer.WriteLine($" - replaced {guid.GuidFrom.Value} with {guid.FileIdTo}:{guid.GuidTo.Value}:{guid.FileTypeTo}");
+                        
+                        // replace the whole line
+                        lines[i] = UnityAssetTypes.AssetReferencePattern.Replace(line, $"{{fileID: {guid.FileIdTo?.Value}, guid: {guid.GuidTo}, type: {guid.FileTypeTo?.Value}}}");
+                    } else {
+                        writer.WriteLine($" - replaced {guid.GuidFrom.Value} with {guid.GuidTo.Value}");
+                        
+                        // replace just the guid
+                        lines[i] = line.Replace(guid.GuidFrom.Value, guid.GuidTo.Value);
+                    }
+                }
+            }
         }
         
+        // foreach (var pair in guids) {
+        //     // Console.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
+        //     writer.WriteLine($" - replaced {pair.GuidFrom.Value} with {pair.GuidTo.Value}");
+            
+        //     if (pair.FileIdTo != null) {
+        //         // replace the whole line
+        //         contents = contents.Replace(pair.GuidFrom.Value, pair.GuidTo.Value);
+        //     } else {
+        //         // replace just the guid
+        //         contents = contents.Replace(pair.GuidFrom.Value, pair.GuidTo.Value);
+        //     }
+        //     count++;
+        // }
+        
+        var contents = string.Join('\n', lines);
         if (!Utility.IsRunningTests) {
             File.WriteAllText($"{filePath}.new", contents);
         }
@@ -352,4 +382,4 @@ public record GuidDatabase {
     }
 }
 
-public record GuidDatabaseMerge(UnityGuid GuidFrom, UnityGuid GuidTo);
+public record GuidDatabaseMerge(UnityGuid GuidFrom, UnityGuid GuidTo, UnityFileId? FileIdTo, UnityFileType? FileTypeTo);

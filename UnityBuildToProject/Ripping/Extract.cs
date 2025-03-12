@@ -17,6 +17,8 @@ public static class Extract {
     }
     
     public static (LibraryConfiguration, GameData, ExportHandler) ExtractGameData(ExtractSettings? extractSettings, BuildMetadata buildMetadata, string? customPath, bool process) {
+        Console.WriteLine("Extracting export game data. This can take a bit...");
+        
         var config = new LibraryConfiguration();
         config.LoadFromDefaultPath();
         
@@ -202,7 +204,7 @@ public static class Extract {
             AnsiConsole.WriteLine($"Copied:\nfrom:{Utility.ClampPathFolders(shader, 6)}\nto: {Utility.ClampPathFolders(newPath, 6)}");
         }
         
-        await Paths.DeleteDirectory(shadersOutputRoot);
+        // await Paths.DeleteDirectory(shadersOutputRoot);
         
         return rootAbove;
     }

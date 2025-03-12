@@ -8,6 +8,22 @@ public static partial class Utility {
     private static readonly string? CallingAssemblyName = Assembly.GetCallingAssembly()?.GetName().Name;
     public static bool IsRunningTests = CallingAssemblyName == "UnityBuildToProject.Tests";
     
+    public static string? GetLeadingWhitespace(string str) {
+        var idx = -1;
+        
+        for (int i = 0; i < str.Length; i++) {
+            if (char.IsWhiteSpace(str[i])) continue;
+            idx = i;
+            break;
+        }
+        
+        if (idx == -1) {
+            return null;
+        }
+        
+        return str[..idx];
+    }
+    
     public static void CopyFilesRecursively(string sourcePath, string targetPath) {
         // create all of the directories
         foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories)) {
@@ -62,18 +78,13 @@ public static partial class Utility {
         AnsiConsole.MarkupLine("[green]Done[/] copying!");
     }
     
-    public static async Task CopyAssets(string sourcePath, string targetPath, HashSet<string> fileBlacklist, HashSet<string> folderBlacklist) {
+    public static async Task CopyAssets(string sourcePath, string targetPath, HashSet<string> fileBlacklist) {
         AnsiConsole.MarkupLine($"Copying assets from \"{sourcePath}\" to \"{targetPath}\"...");
         
         fileBlacklist   = [.. fileBlacklist.Select(Path.GetFullPath)];
-        folderBlacklist = [.. folderBlacklist.Select(Path.GetFullPath)];
         
         foreach (var file in fileBlacklist) {
             Console.WriteLine($" - without file: {file}");
-        }
-        
-        foreach (var folder in folderBlacklist) {
-            Console.WriteLine($" - without folder: {folder}");
         }
         
         await AnsiConsole.Status()
@@ -84,15 +95,6 @@ public static partial class Utility {
                 // create all of the directories
                 var directories = Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories);
                 foreach (var dirPath in directories) {
-                    if (folderBlacklist.Contains(dirPath)) {
-                        AnsiConsole.WriteLine($"in blacklist: {dirPath}");
-                        continue;
-                    }
-                    
-                    if (folderBlacklist.Any(y => dirPath.StartsWith(y))) {
-                        continue;
-                    }
-                    
                     AnsiConsole.WriteLine($"Copying \"{dirPath}\" to \"\"{targetPath}");
                     
                     var dir = dirPath.Replace(sourcePath, targetPath);
@@ -106,7 +108,6 @@ public static partial class Utility {
                 // copy all the files & replaces any files with the same name
                 var files = Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories)
                     .Where(x => !Path.GetFileName(x).StartsWith("UnitySourceGeneratedAssemblyMonoScriptTypes"))
-                    .Where(x => !folderBlacklist.Any(y => x.StartsWith(y)))
                     .Where(x => !fileBlacklist.Contains(x))
                     .Where(x => Path.GetFileName(x) != "AssemblyInfo.cs");
                 
@@ -190,8 +191,37 @@ public static partial class Utility {
                     await Task.Yield();
                 }
             });
+            
+        AnsiConsole.WriteLine("Removing empty folders...");
+        
+        var dirs = Directory.GetDirectories(targetPath, "*", SearchOption.AllDirectories);
+        foreach (var dir in dirs) {
+            if (Directory.Exists(dir) && !DirectoryHasFiles(dir)) {
+                AnsiConsole.WriteLine($"Deleting empty folder \"{dir}\"");
+                Directory.Delete(dir, true);
+            }
+        }
         
         AnsiConsole.MarkupLine("[green]Done[/] copying!");
+    }
+    
+    private static bool DirectoryHasFiles(string folderPath) {
+        if (!Directory.Exists(folderPath)) return true;
+        
+        // Check if the current directory contains any files.
+        if (Directory.GetFiles(folderPath).Length > 0) {
+            return true;
+        }
+
+        // Recursively check each subdirectory.
+        foreach (var subDir in Directory.GetDirectories(folderPath)) {
+            if (DirectoryHasFiles(subDir)) {
+                return true;
+            }
+        }
+
+        // No files were found in this directory or any of its children.
+        return false;
     }
     
     // 0: wrong file format
@@ -287,7 +317,8 @@ public static partial class Utility {
             text = text.Replace("$PLUGINS$", pluginsPath.FullName);
         }
         
-        return text;
+        return text.Replace('/', Path.DirectorySeparatorChar)
+                   .Replace('\\', Path.DirectorySeparatorChar);
     }
 
     [GeneratedRegex(@"^(?<base>.+?)(?:_\d+)((?:\.[^.]+)+)$", RegexOptions.IgnoreCase, "en-US")]

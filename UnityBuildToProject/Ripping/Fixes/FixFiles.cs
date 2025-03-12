@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using Spectre.Console;
 
@@ -12,8 +13,7 @@ public static class FixFiles {
         var gameName      = settings.GetGameName();
         
         // copy from settings folder
-        var saveFolder    = GameSettings.GetSaveFolder(gameName);
-        var projectFolder = Path.Combine(saveFolder, "Project");
+        var projectFolder = GetSettingsProjectFolder(settings);
         
         if (Directory.Exists(projectFolder)) {
             AnsiConsole.WriteLine($"Custom files found for {gameName}, copying over...");
@@ -44,8 +44,18 @@ public static class FixFiles {
             var toPathFolder = Path.GetDirectoryName(toPath)!;
             Directory.CreateDirectory(toPathFolder);
             
-            File.Copy(fromPath, toPath);
+            File.Copy(fromPath, toPath, true);
         }
+    }
+    
+    public static string GetSettingsProjectFolder(ToolSettings settings) {
+        var gameName      = settings.GetGameName();
+        
+        // copy from settings folder
+        var saveFolder    = GameSettings.GetSaveFolder(gameName);
+        var projectFolder = Path.Combine(saveFolder, "Project");
+        
+        return projectFolder;
     }
     
     /// <summary>
@@ -70,6 +80,34 @@ public static class FixFiles {
                 $"-importPackage \"{file}\""
             );
         }
+        
+        foreach (var file in settings.GameSettings.PackageOverrides.ImportUnityPackages ?? []) {
+            var unityPath = settings.GetUnityPath();
+            var name      = Path.GetFileName(file.Path);
+            var path      = Path.GetFullPath(
+                Path.Combine(projectPath, file.Path)
+            );
+            
+            if (!File.Exists(path)) {
+                throw new FileNotFoundException(path);
+            }
+            
+            await UnityCLI.OpenProjectHidden($"Importing {name}", unityPath, true, projectPath,
+                $"-importPackage \"{path}\""
+            );
+        }
+    }
+    
+    public static async Task ImportUnityPackage(ToolSettings settings, string path) {
+        var name = Path.GetFileName(path);
+        if (!File.Exists(path)) {
+            throw new FileNotFoundException(path);
+        }
+        
+        var unityPath = settings.GetUnityPath();
+        await UnityCLI.OpenProjectHidden($"Importing {name}", unityPath, true, settings.ExtractData.GetProjectPath(),
+            $"-importPackage \"{path}\""
+        );
     }
     
     /// <summary>
@@ -176,60 +214,90 @@ public static class FixFiles {
         }
     }
     
-//     public static void FixMissingGuids(ToolSettings settings) {
-//         var metaGuids = settings.GameSettings.FileOverrides.MetaGuids;
-//         if (metaGuids == null) return;
-//         if (metaGuids.Length == 0) return;
+    public static void FixAssetNames(ToolSettings settings) {
+        var toProcess = new string[] {
+            "MonoBehaviour",
+            "AnimationClip",
+            "Material"
+        };
         
-//         var projectPath = settings.ExtractData.Config.ProjectRootPath;
-//         foreach (var (path, guidPath, line) in metaGuids) {
-//             var filePath = Path.Combine(projectPath, path);
-//             if (!File.Exists(filePath)) {
-//                 throw new FileNotFoundException(filePath);
-//             }
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var assetsPath  = Path.Combine(projectPath, "Assets");
+        
+        var sb = new StringBuilder();
+        foreach (var path in toProcess) {
+            AnsiConsole.WriteLine($"Fixing asset names in {path}");
             
-//             var metaPath = filePath + ".meta";
+            var folderPath = Path.Combine(assetsPath, path);
+            if (!Directory.Exists(folderPath)) continue;
             
-//             var extension = Path.GetExtension(path);
-//             var metaContents = extension switch {
-//                 ".shader" => @"fileFormatVersion: 2
-// guid: #_GUID_
-// timeCreated: 1741118198
-// licenseType: Free
-// ShaderImporter:
-//   externalObjects: {}
-//   defaultTextures: []
-//   nonModifiableTextures: []
-//   preprocessorOverride: 0
-//   userData:
-//   assetBundleName:
-//   assetBundleVariant:
-// ",
-//                 _ => string.Empty,
-//             };
-            
-//             if (string.IsNullOrEmpty(metaContents)) continue;
-            
-//             var guidFilePath     = Path.Combine(projectPath, guidPath);
-//             if (!File.Exists(guidFilePath)) {
-//                 throw new FileNotFoundException(guidFilePath);
-//             }
-            
-//             var guidPathContents = File.ReadAllLines(guidFilePath);
-//             var realLine         = line - 1;
-//             if (realLine <= 0 || guidPathContents.Length < realLine) {
-//                 throw new Exception($"Invalid line at {line} for guidPath: {guidFilePath}");
-//             }
-            
-//             var textLine  = guidPathContents[realLine];
-//             var guidMatch = UnityAssetTypes.GuidPattern.Match(textLine);
-//             if (guidMatch == null || !guidMatch.Success) {
-//                 throw new Exception($"No guid on line {line} for guidPath: {guidFilePath}");
-//             }
-            
-//             var guid = guidMatch.Groups["guid"].Value;
-//             metaContents = metaContents.Replace("#_GUID_", guid);
-//             File.WriteAllText(metaPath, metaContents);
-//         }
-//     }
+            var files = Directory.GetFiles(folderPath, "*.asset", SearchOption.AllDirectories);
+            foreach (var file in files) {
+                AnsiConsole.WriteLine($" - checking {Utility.ClampPathFolders(file, 6)}");
+                
+                sb.Clear();
+                
+                var text = File.ReadAllText(file);
+                var name = Path.GetFileNameWithoutExtension(file);
+                using (var reader = new StreamReader(file)) {
+                    while (reader.Peek() >= 0) {
+                        // read lines
+                        var line = reader.ReadLine();
+                        if (line == null) continue;
+                        
+                        if (line.TrimStart().StartsWith("m_Name:")) {
+                            var leading = Utility.GetLeadingWhitespace(line);
+                            sb.AppendLine($"{leading}m_Name: {name}");
+                            break;
+                        }
+                        
+                        sb.AppendLine(line);
+                    }
+                    
+                    // flush lines
+                    while (reader.Peek() >= 0) {
+                        var line = reader.ReadLine();
+                        if (line == null) continue;
+                        
+                        sb.AppendLine(line);
+                    }
+                }
+                
+                File.WriteAllText(file, sb.ToString());
+                
+                AnsiConsole.WriteLine($" - fixed {Utility.ClampPathFolders(file, 6)}");
+            }
+        }
+    }
+    
+    public static void CleanupDeadMetaFiles(ToolSettings settings) {
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var assetsPath  = Path.Combine(projectPath, "Assets");
+        var files       = Directory.GetFiles(assetsPath, "*.meta", SearchOption.AllDirectories);
+        
+        foreach (var file in files) {
+            var path = file[..^".meta".Length];
+            if (!Directory.Exists(path) && !File.Exists(path)) {
+                File.Delete(file);
+            }
+        }
+    }
+    
+    public static void FixAmbiguousUsages(ToolSettings settings, (string[] usages, string addition)[] allUsages) {
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var assetsPath  = Path.Combine(projectPath, "Assets");
+        var scriptsPath = Path.Combine(assetsPath, "Scripts");
+        
+        var files = Directory.GetFiles(scriptsPath, "*.cs", SearchOption.AllDirectories);
+        foreach (var file in files) {
+            var text = File.ReadAllText(file);
+            foreach (var (usages, addition) in allUsages) {
+                if (usages.All(x => text.Contains($"using {x};"))) {
+                    var first = $"using {usages[0]};";
+                    text = text.Replace(first, $"{first}\n{addition}");
+                    File.WriteAllText(file, text);
+                }
+            }
+        }
+    }
 }

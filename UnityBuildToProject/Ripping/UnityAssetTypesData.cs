@@ -64,7 +64,7 @@ public record UnityFileId(string Value) {
 /// Another factor to highlight regarding script serialization is that the YAML Type is the same for every script; just MonoBehaviour.
 /// The actual script is referenced in the “m_Script” property, using the GUID of the script’s meta file.
 /// </summary>
-public record UnityFileType(int Value) {
+public record UnityFileType(long Value) {
     /// <summary>
     /// Assets that can be loaded directly from the Assets folder by the Editor,
     /// like Materials and .asset files.
@@ -99,6 +99,12 @@ public record UnityAssetReference {
     public override string ToString() {
         return $"{FileId}:{Guid}:{Type}";
     }
+}
+
+public record UnityDllReference {
+    public required UnityAssetReference Ref;
+    public required string FilePath;
+    public required string TypeName;
 }
 
 /// <summary>
