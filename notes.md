@@ -42,7 +42,7 @@ The main goal of this project is to make a better version of my prior build->pro
 - [x] Decompiled shaders have to be manually cleaned up as well, clean up common cases?
 - [ ] Making an asmdefref for specific package folders
     Probably assign in game specific settings
-- [ ] Rename files entirely after the fact, such as txt -> csv
+- [x] Rename files entirely after the fact, such as txt -> csv
 - [x] Fix new input system asset files
     - [x] Proper file extension
     - [x] Proper json data
@@ -75,7 +75,7 @@ The main goal of this project is to make a better version of my prior build->pro
       Then keep the ones that have meta files.
 - [ ] Windows paths longer than 260 cause problems
 - [x] Match SO m_Name to its file name
-- [ ] Scripts from DLLs aren't discovered
+- [x] Scripts from DLLs aren't discovered
 - [ ] Wwise
     - [x] Files with `using AK.Wwise;` and `using UnityEngine;` need to replace all `Event` with `AK.Wwise.Event`
     - [ ] Wwise missing DLLs, maybe need to install wwise through normal methods first
@@ -102,12 +102,9 @@ Stable:
 - Toree3D
 - SuperKiwi64
     - Baked meshes show black
+- Lethal Company
 
 In Progress:
-- Lethal Company
-    - Steam specific stuff isn't mapping properly sometimes
-    - Some input action refs aren't mapping properly
-    - Scripts from DLLs aren't discovered
 - FlipWitch
     - Wwise missing DLLs
 - Gun Frog
