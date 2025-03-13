@@ -244,8 +244,10 @@ public record RoslynDatabase {
         
         foreach (var path in settings.GameSettings.Files.PathExclusions ?? []) {
             var finalPath = Path.GetFullPath(
-                Path.Combine(exportFolder, path.Path)
+                Path.Combine(exportFolder, path)
             );
+            
+            Console.WriteLine($"path_exclusion:\n - {path}\n - {finalPath}");
             
             if (Directory.Exists(finalPath)) {
                 var files = Directory.GetFiles(finalPath, "*.*", SearchOption.AllDirectories);
@@ -257,6 +259,8 @@ public record RoslynDatabase {
             exclusionFiles.Add(finalPath);
             exclusionFiles.Add(finalPath + ".meta");
         }
+        
+        // throw null;
         
         return (exclusionFiles, exclusionFolders);
     }

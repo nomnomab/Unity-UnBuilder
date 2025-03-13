@@ -26,25 +26,42 @@ public static class FixFiles {
         var gameSettings = settings.GameSettings;
         projectFolder    = settings.ExtractData.GetProjectPath();
         var assetsPath   = Path.Combine(projectFolder, "Assets");
-        foreach (var (from, to) in gameSettings.Files.CopyFilePaths ?? []) {
+        foreach (var (from, to) in gameSettings.Files.CopyPaths ?? []) {
             if (string.IsNullOrEmpty(from)) continue;
             
             var fromPath = Utility.ReplacePathModifier(settings, from);
-            var toPath   = string.IsNullOrEmpty(to) 
-                ? Path.Combine("Plugins", Path.GetFileName(from))
-                : to;
+            // var toPath   = string.IsNullOrEmpty(to) 
+            //     ? Path.Combine("Plugins", Path.GetFileName(from))
+            //     : to;
+            var toPath   = to;
             toPath       = Path.Combine(assetsPath, toPath);
             
             AnsiConsole.WriteLine($"Copying {fromPath, 4} to {Utility.ClampPathFolders(toPath, 4)}");
-            
-            if (!File.Exists(fromPath)) {
-                throw new FileNotFoundException(fromPath);
+            if (Directory.Exists(fromPath)) {
+                Directory.CreateDirectory(toPath);
+                
+                // is a directory
+                var files = Directory.GetFiles(fromPath, "*.*", SearchOption.AllDirectories);
+                foreach (var file in files) {
+                    var filePath = file.Replace(fromPath, toPath);
+                    var toPathFolder = Path.GetDirectoryName(filePath)!;
+                    Directory.CreateDirectory(toPathFolder);
+                    
+                    File.Copy(file, filePath, true);
+                }
+                continue;
             }
             
-            var toPathFolder = Path.GetDirectoryName(toPath)!;
-            Directory.CreateDirectory(toPathFolder);
-            
-            File.Copy(fromPath, toPath, true);
+            {
+                if (!File.Exists(fromPath)) {
+                    throw new FileNotFoundException(fromPath);
+                }
+                
+                var toPathFolder = Path.GetDirectoryName(toPath)!;
+                Directory.CreateDirectory(toPathFolder);
+                
+                File.Copy(fromPath, toPath, true);
+            }
         }
     }
     
@@ -293,7 +310,7 @@ public static class FixFiles {
         }
     }
     
-    public static void FixAmbiguousUsages(ToolSettings settings, (string[] usages, string addition)[] allUsages) {
+    public static void FixAmbiguousUsages(ToolSettings settings) {
         Console.WriteLine($"Fixing ambiguous usages...");
         
         var projectPath = settings.ExtractData.GetProjectPath();
@@ -303,11 +320,15 @@ public static class FixFiles {
         var files = Directory.GetFiles(scriptsPath, "*.cs", SearchOption.AllDirectories);
         foreach (var file in files) {
             var text = File.ReadAllText(file);
-            foreach (var (usages, addition) in allUsages) {
+            foreach (var (usages, addition) in settings.GameSettings.Files.ReplaceAmbiguousUsages ?? []) {
+                Console.WriteLine($"Checking {file} for:\n - {string.Join(',', usages)}");
+                
                 if (usages.All(x => text.Contains($"using {x};"))) {
                     var first = $"using {usages[0]};";
                     text = text.Replace(first, $"{first}\n{addition}");
                     File.WriteAllText(file, text);
+                    
+                    Console.WriteLine($" - found, adding \"{addition}\"");
                 }
             }
         }

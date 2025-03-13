@@ -47,10 +47,13 @@ public record GameSettings {
             ImportUnityPackages = [],
         },
         Files = new() {
-            CopyFilePaths       = [],
-            PathExclusions  = [],
-            IncludePaths    = [],
-            ReplaceContents = [],
+            CopyPaths                      = [],
+            PathExclusions                     = [],
+            IncludePaths                       = [],
+            ReplaceContents                    = [],
+            ReplaceAmbiguousUsages             = [],
+            ScriptFolderNameExcludeFromGuids   = [],
+            ScriptFolderPrefixExcludeFromGuids = [],
         }
     };
     
@@ -103,19 +106,33 @@ public record Files {
 You really only need to do this for things like custom scripts inside of an internal package namespace folder.
 
 Each entry is in the format of:
-{ Path = ""Assets/FileOrFolder"" },")]
-    public FileOverride[]? IncludePaths = [];
+""Assets/FileOrFolder""")]
+    public string[] IncludePaths = [];
     
     [TomlPrecedingComment(@"Files and folders that will NOT be included in the final project.
 
 Each entry is in the format of:
-{ Path = ""Assets/FileOrFolder"" },
+""Assets/FileOrFolder""
 
 Or in the format of this to exclude files with a prefix:
-{ Path = ""Assets/File.*"" },")]
-    public FileOverride[]? PathExclusions = [];
+""Assets/File.*""")]
+    public string[] PathExclusions = [];
     
-    [TomlPrecedingComment(@"Files that will be copied to the project.
+    [TomlPrecedingComment(@"Prefixes that will exclude certain folders in Assets/Scripts from
+guid mapping.
+
+Each entry is in the format of:
+""Folder.Prefix""")]
+    public string[] ScriptFolderPrefixExcludeFromGuids = [];
+    
+    [TomlPrecedingComment(@"Folder names that will be excluded in Assets/Scripts from
+and won't be handled in guid mapping.
+
+Each entry is in the format of:
+""Folder""")]
+    public string[] ScriptFolderNameExcludeFromGuids = [];
+    
+    [TomlPrecedingComment(@"Files and folders that will be copied to the project.
 
 Tags can be used to indicate locations:
 > $DATA$    : Game/Game_Data/
@@ -124,7 +141,7 @@ Tags can be used to indicate locations:
 
 Each entry is in the format of:
 { PathFrom = ""Path/To/File"", PathTo = ""Assets/File"" },")]
-    public required FileCopy[] CopyFilePaths = [];
+    public required FileCopy[] CopyPaths = [];
     
     [TomlPrecedingComment(@"Files that require some part of it to be replaced with something else.
 
@@ -133,8 +150,15 @@ The `Find` argument can also be a regex expression.
 Each entry is in the format of:
 { Path = ""Assets/File"", Find = ""Foo"", Replacement = ""Bar"" }")]
     public required FileContentReplace[] ReplaceContents = [];
+    
+    [TomlPrecedingComment(@"Used to resolve ambiguous type usages between two namespaces.
+
+Each entry is in the format of:
+{ Usings = [""Other"", ""UnityEngine""], Resolution = ""using Event = Other.Event;"" }")]
+    public required FileAmbiguousUsage[] ReplaceAmbiguousUsages = [];
 }
 
-public record FileOverride(string Path);
+// public record FileOverride(string Path);
 public record FileCopy(string PathFrom, string PathTo);
 public record FileContentReplace(string Path, string Find, string Replacement);
+public record FileAmbiguousUsage(string[] Usings, string Resolution);

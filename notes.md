@@ -106,7 +106,9 @@ The main goal of this project is to make a better version of my prior build->pro
         - [x] Replace `Utils.Instantiate(m_prefab, base.transform.parent).name = m_prefab.Name;` with `SoftReferenceableAssets.Utils.Instantiate(m_prefab, base.transform.parent).name = m_prefab.Name;`
     - [ ] `Unable to parse file Assets/Systems/_GameMain.prefab: [Parser Failure at line 268994: Expect ':' between key and value within mapping]`
     - [ ] Disable post processing components
+    - [x] Copy steam_appid.txt
 - [x] GameSettings way to do file content-string replacements
+- [ ] Manually replace shader by shader path as well
 
 ## Games Tested With
 Stable:
@@ -117,6 +119,8 @@ Stable:
 - Lethal Company
 - Valheim
     - Needs a way to disable the post processing components
+- How Fish is Made
+    - Needs a better replacement shader for psx
 
 In Progress:
 - FlipWitch
@@ -155,3 +159,5 @@ Can't compile yet:
 Untested on this version:
 - Content Warning
 - ULTRAKILL
+- Golden Light
+- BetonBrutal

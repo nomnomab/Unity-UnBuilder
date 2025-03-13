@@ -67,12 +67,12 @@ public sealed class PackageDetection {
     /// <summary>
     /// Attempts to match the project DLLs with known package associations.
     /// </summary>
-    public PackageTree TryToMapPackagesToProject(UnityPackages versionPackages) {
+    public PackageTree TryToMapPackagesToProject(ToolSettings settings, UnityPackages versionPackages) {
         var foundPackages  = new List<PackageInfo>();
         var failedPackages = new List<string>();
         
         // fetch from game assemblies
-        foreach (var name in GetGameAssemblies(_extractData)) {
+        foreach (var name in GetGameAssemblies(settings)) {
             var package = PackageAssociations.FindAssociationFromDll(name);
             if (package == null) {
                 failedPackages.Add(name);
@@ -98,7 +98,7 @@ public sealed class PackageDetection {
         AnsiConsole.Write(failedPanel);
         
         // build a dependency tree
-        var packageTree = PackageTree.Build(foundPackages, _extractData, versionPackages);
+        var packageTree = PackageTree.Build(foundPackages, settings, versionPackages);
         
         // for now make sure there is always newtonsoft json included
         if (packageTree.Find("com.unity.nuget.newtonsoft-json") == null) {
@@ -113,7 +113,8 @@ public sealed class PackageDetection {
         return packageTree;
     }
     
-    public void ApplyGameSettingsPackages(GameSettings gameSettings, PackageTree packageTree) {
+    public void ApplyGameSettingsPackages(ToolSettings settings, PackageTree packageTree) {
+        var gameSettings = settings.GameSettings;
         if (gameSettings.Packages.Overrides == null) {
             Console.WriteLine($"No package overrides");
             return;
@@ -157,7 +158,7 @@ public sealed class PackageDetection {
         }
         
         // remove packages that have no dll specifically
-        var dlls = GetGameAssemblies(_extractData);
+        var dlls = GetGameAssemblies(settings);
         if (!dlls.Any(x => PackageAssociations.FindAssociationFromDll(x)?.Id == "com.unity.inputsystem")) {
             packageTree.Remove("com.unity.inputsystem");
         }
@@ -316,20 +317,24 @@ public sealed class PackageDetection {
         File.WriteAllText(manifestPath, newJson);
     }
     
-    public static IEnumerable<string> GetGameAssemblies(ExtractData extractData) {
-        var extractRootPath    = extractData.Config.AuxiliaryFilesPath;
+    public static IEnumerable<string> GetGameAssemblies(ToolSettings settings) {
+        var extractRootPath    = settings.ExtractData.Config.AuxiliaryFilesPath;
         var gameAssembliesPath = Path.Combine(extractRootPath, "GameAssemblies");
         var dlls               = Directory.GetFiles(gameAssembliesPath, "*.dll", SearchOption.TopDirectoryOnly);
         
+        var prefixExclusions = PackageAssociations.ExcludePrefixesFromPackages
+            .Concat(settings.GameSettings.Files.ScriptFolderPrefixExcludeFromGuids ?? []);
+        var nameExclusions   = PackageAssociations.ExcludeNamesFromPackages
+            .Concat(settings.GameSettings.Files.ScriptFolderNameExcludeFromGuids ?? []);
         foreach (var dll in dlls.OrderBy(x => x)) {
             if (dll == null) continue;
             
             var fileName = Path.GetFileNameWithoutExtension(dll);
-            if (PackageAssociations.ExcludePrefixesFromPackages.Any(x => fileName.StartsWith(x))) {
+            if (prefixExclusions.Any(fileName.StartsWith)) {
                 continue;
             }
             
-            if (PackageAssociations.ExcludeNamesFromPackages.Contains(fileName)) {
+            if (nameExclusions.Contains(fileName)) {
                 continue;
             }
             

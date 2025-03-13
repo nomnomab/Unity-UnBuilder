@@ -433,10 +433,10 @@ public record PackageTree {
     public required List<PackageTreeNode> Nodes = [];
     public required string[] Dlls = [];
     
-    public static PackageTree Build(IEnumerable<PackageInfo> packages, ExtractData extractData, UnityPackages versionPackages) {
+    public static PackageTree Build(IEnumerable<PackageInfo> packages, ToolSettings settings, UnityPackages versionPackages) {
         var tree = new PackageTree() {
             Nodes = [],
-            Dlls  = [.. PackageDetection.GetGameAssemblies(extractData)],
+            Dlls  = [.. PackageDetection.GetGameAssemblies(settings)],
         };
         
         var workingPackages = packages.Where(x => !PackageAssociations.ExcludeIds.Contains(x.Id))

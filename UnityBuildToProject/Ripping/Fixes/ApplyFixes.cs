@@ -15,24 +15,25 @@ public static class ApplyFixes {
             }
             
             // todo: do this per-game instead?
-            if (packageTree.Dlls.Contains("AK.Wwise.Unity.API")) {
-                FixFiles.FixAmbiguousUsages(settings, [
-                    (
-                        ["AK.Wwise", "UnityEngine"],
-                        "using Event = AK.Wwise.Event;"
-                    ),
-                ]);
-            }
+            // if (packageTree.Dlls.Contains("AK.Wwise.Unity.API")) {
+            //     FixFiles.FixAmbiguousUsages(settings, [
+            //         (
+            //             ["AK.Wwise", "UnityEngine"],
+            //             "using Event = AK.Wwise.Event;"
+            //         ),
+            //     ]);
+            // }
             
-            if (packageTree.Dlls.Contains("ParticleImage")) {
-                FixFiles.FixAmbiguousUsages(settings, [
-                    (
-                        ["AssetKits.ParticleImage.Enumerations", "UnityEngine"],
-                        "using PlayMode = AssetKits.ParticleImage.Enumerations.PlayMode;"
-                    ),
-                ]);
-            }
+            // if (packageTree.Dlls.Contains("ParticleImage")) {
+            //     FixFiles.FixAmbiguousUsages(settings, [
+            //         (
+            //             ["AssetKits.ParticleImage.Enumerations", "UnityEngine"],
+            //             "using PlayMode = AssetKits.ParticleImage.Enumerations.PlayMode;"
+            //         ),
+            //     ]);
+            // }
             
+            FixFiles.FixAmbiguousUsages(settings);
             FixFiles.FixCheckedGetHashCodes(settings);
             FixFiles.RemovePrivateDetails(settings);
             FixFiles.ReplaceFileContents(settings);

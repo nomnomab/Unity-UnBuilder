@@ -84,8 +84,8 @@ public static class AsyncProgram {
             // try to determine which packages are for this specific project
             // todo: handle 2017 not supporting this :))))))
             
-            packageTree = packageDetection.TryToMapPackagesToProject(packages);
-            packageDetection.ApplyGameSettingsPackages(settings.GameSettings, packageTree);
+            packageTree = packageDetection.TryToMapPackagesToProject(settings, packages);
+            packageDetection.ApplyGameSettingsPackages(settings, packageTree);
             
             packageTree.WriteToConsole();
             

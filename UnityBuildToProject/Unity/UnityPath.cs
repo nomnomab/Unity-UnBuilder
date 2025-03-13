@@ -77,6 +77,6 @@ You can install it from below:
     }
     
     public static string GetDownloadUrl(string version) {
-        return $"https://unity.com/releases/editor/whats-new/{version}#installs";
+        return $"https://unity.com/releases/editor/whats-new/{version}";
     }
 }
