@@ -4,9 +4,8 @@ namespace Nomnom;
 
 public record GameSettings {
     public required GeneralSettings General { get; set; }
-    public required PackageOverrides PackageOverrides { get; set; }
-    public required FileOverrides FileOverrides { get; set; }
-    public required FileCopying FileCopying { get; set; }
+    public required Packages Packages { get; set; }
+    public required Files Files { get; set; }
     
     public static string GetGameName(string gameName) {
         return gameName.Replace(" ", "_")
@@ -43,16 +42,15 @@ public record GameSettings {
         General = new() {
             OpenScenePath = null,
         },
-        PackageOverrides = new() {
-            Packages            = [],
+        Packages = new() {
+            Overrides           = [],
             ImportUnityPackages = [],
         },
-        FileOverrides = new() {
-            ProjectPaths = [],
-            Exclusions   = [],
-        },
-        FileCopying = new() {
-            FilePaths    = [],
+        Files = new() {
+            CopyFilePaths       = [],
+            PathExclusions  = [],
+            IncludePaths    = [],
+            ReplaceContents = [],
         }
     };
     
@@ -61,9 +59,8 @@ public record GameSettings {
         var settings = Settings.Load(savePath, Default, x => {
             var defaultValue = Default;
             x.General          ??= defaultValue.General;
-            x.PackageOverrides ??= defaultValue.PackageOverrides;
-            x.FileOverrides    ??= defaultValue.FileOverrides;
-            x.FileCopying      ??= defaultValue.FileCopying;
+            x.Packages ??= defaultValue.Packages;
+            x.Files            ??= defaultValue.Files;
         });
         
         return settings;
@@ -75,14 +72,19 @@ public record GameSettings {
     }
 }
 
-public record PackageOverrides {
+public record GeneralSettings {
+    [TomlPrecedingComment(@"The path to the scene file to open on completion.")]
+    public required string? OpenScenePath { get; set; }
+}
+
+public record Packages {
     [TomlPrecedingComment(@"Add new packages, or override a package version here.
 
 Each entry is in the format of:
 { Id = ""com.package.name"", Version = ""1.0.0"", },
 
 A version of ""no"" will exclude the package if it is included.")]
-    public required PackageOverride[] Packages = [];
+    public required PackageOverride[] Overrides = [];
     
     [TomlPrecedingComment(@"Import .unitypackage files from the project path.
 
@@ -95,14 +97,14 @@ public record PackageOverride(string Id, string? Version);
 
 public record ImportUnityPackage(string Path);
 
-public record FileOverrides {
+public record Files {
     [TomlPrecedingComment(@"Files and folders that will make sure to be included in the final project.
 
 You really only need to do this for things like custom scripts inside of an internal package namespace folder.
 
 Each entry is in the format of:
 { Path = ""Assets/FileOrFolder"" },")]
-    public FileOverride[]? ProjectPaths = [];
+    public FileOverride[]? IncludePaths = [];
     
     [TomlPrecedingComment(@"Files and folders that will NOT be included in the final project.
 
@@ -111,12 +113,8 @@ Each entry is in the format of:
 
 Or in the format of this to exclude files with a prefix:
 { Path = ""Assets/File.*"" },")]
-    public FileOverride[]? Exclusions = [];
-}
-
-public record FileOverride(string Path);
-
-public record FileCopying {
+    public FileOverride[]? PathExclusions = [];
+    
     [TomlPrecedingComment(@"Files that will be copied to the project.
 
 Tags can be used to indicate locations:
@@ -126,12 +124,17 @@ Tags can be used to indicate locations:
 
 Each entry is in the format of:
 { PathFrom = ""Path/To/File"", PathTo = ""Assets/File"" },")]
-    public required FileCopy[] FilePaths = [];
+    public required FileCopy[] CopyFilePaths = [];
+    
+    [TomlPrecedingComment(@"Files that require some part of it to be replaced with something else.
+
+The `Find` argument can also be a regex expression.
+
+Each entry is in the format of:
+{ Path = ""Assets/File"", Find = ""Foo"", Replacement = ""Bar"" }")]
+    public required FileContentReplace[] ReplaceContents = [];
 }
 
+public record FileOverride(string Path);
 public record FileCopy(string PathFrom, string PathTo);
-
-public record GeneralSettings {
-    [TomlPrecedingComment(@"The path to the scene file to open on completion.")]
-    public required string? OpenScenePath { get; set; }
-}
+public record FileContentReplace(string Path, string Find, string Replacement);

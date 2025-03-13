@@ -114,20 +114,20 @@ public sealed class PackageDetection {
     }
     
     public void ApplyGameSettingsPackages(GameSettings gameSettings, PackageTree packageTree) {
-        if (gameSettings.PackageOverrides == null) {
+        if (gameSettings.Packages.Overrides == null) {
             Console.WriteLine($"No package overrides");
             return;
         }
         
-        var overrides = gameSettings.PackageOverrides;
-        if (overrides.Packages == null) {
+        var packages = gameSettings.Packages;
+        if (packages.Overrides == null) {
             Console.WriteLine($"No packages");
             return;
         }
         
-        Console.WriteLine($"{overrides.Packages.Length} packages to override");
+        Console.WriteLine($"{packages.Overrides.Length} packages to override");
         
-        foreach (var (id, version) in overrides.Packages) {
+        foreach (var (id, version) in packages.Overrides) {
             // if the package exists, replace the version
             var node = packageTree.Find(id);
             if (node != null && !string.IsNullOrEmpty(version)) {

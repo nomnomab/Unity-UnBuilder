@@ -32,6 +32,10 @@ public static class ApplyFixes {
                     ),
                 ]);
             }
+            
+            FixFiles.FixCheckedGetHashCodes(settings);
+            FixFiles.RemovePrivateDetails(settings);
+            FixFiles.ReplaceFileContents(settings);
         }
         
         // todo: extract this game specific

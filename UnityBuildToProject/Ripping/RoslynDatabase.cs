@@ -242,7 +242,7 @@ public record RoslynDatabase {
             }
         }
         
-        foreach (var path in settings.GameSettings.FileOverrides.Exclusions ?? []) {
+        foreach (var path in settings.GameSettings.Files.PathExclusions ?? []) {
             var finalPath = Path.GetFullPath(
                 Path.Combine(exportFolder, path.Path)
             );

@@ -26,7 +26,7 @@ public static class FixFiles {
         var gameSettings = settings.GameSettings;
         projectFolder    = settings.ExtractData.GetProjectPath();
         var assetsPath   = Path.Combine(projectFolder, "Assets");
-        foreach (var (from, to) in gameSettings.FileCopying.FilePaths ?? []) {
+        foreach (var (from, to) in gameSettings.Files.CopyFilePaths ?? []) {
             if (string.IsNullOrEmpty(from)) continue;
             
             var fromPath = Utility.ReplacePathModifier(settings, from);
@@ -81,7 +81,7 @@ public static class FixFiles {
             );
         }
         
-        foreach (var file in settings.GameSettings.PackageOverrides.ImportUnityPackages ?? []) {
+        foreach (var file in settings.GameSettings.Packages.ImportUnityPackages ?? []) {
             var unityPath = settings.GetUnityPath();
             var name      = Path.GetFileName(file.Path);
             var path      = Path.GetFullPath(
@@ -114,6 +114,8 @@ public static class FixFiles {
     /// Attempts to convert any .txt files into another file type.
     /// </summary>
     public static void ParseTextFiles(ExtractData extractData) {
+        Console.WriteLine($"Parsing text files...");
+        
         var projectPath = extractData.GetProjectPath();
         var assetsPath  = Path.Combine(projectPath, "Assets");
         var txtFiles    = Directory.GetFiles(assetsPath, "*.txt", SearchOption.AllDirectories);
@@ -144,6 +146,8 @@ public static class FixFiles {
     /// Fixes ripped shader contents for things like wrongly-typed values.
     /// </summary>
     public static void FixShaders(ExtractData extractData) {
+        Console.WriteLine($"Fixing shaders...");
+        
         var projectPath = extractData.GetProjectPath();
         var assetsPath  = Path.Combine(projectPath, "Assets");
         var shaderFiles = Directory.GetFiles(assetsPath, "*.shader", SearchOption.AllDirectories);
@@ -168,6 +172,8 @@ public static class FixFiles {
     /// non-underscore names. Useful for assets that require name lookup.
     /// </summary>
     public static void FixDuplicateAssets(ToolSettings settings) {
+        Console.WriteLine($"Fixing duplicate assets...");
+        
         var toProcess = new string[] {
             "AnimationClip"
         };
@@ -215,6 +221,8 @@ public static class FixFiles {
     }
     
     public static void FixAssetNames(ToolSettings settings) {
+        Console.WriteLine($"Fixing asset names...");
+        
         var toProcess = new string[] {
             "MonoBehaviour",
             "AnimationClip",
@@ -271,6 +279,8 @@ public static class FixFiles {
     }
     
     public static void CleanupDeadMetaFiles(ToolSettings settings) {
+        Console.WriteLine($"Cleaning dead meta files...");
+        
         var projectPath = settings.ExtractData.GetProjectPath();
         var assetsPath  = Path.Combine(projectPath, "Assets");
         var files       = Directory.GetFiles(assetsPath, "*.meta", SearchOption.AllDirectories);
@@ -284,6 +294,8 @@ public static class FixFiles {
     }
     
     public static void FixAmbiguousUsages(ToolSettings settings, (string[] usages, string addition)[] allUsages) {
+        Console.WriteLine($"Fixing ambiguous usages...");
+        
         var projectPath = settings.ExtractData.GetProjectPath();
         var assetsPath  = Path.Combine(projectPath, "Assets");
         var scriptsPath = Path.Combine(assetsPath, "Scripts");
@@ -298,6 +310,116 @@ public static class FixFiles {
                     File.WriteAllText(file, text);
                 }
             }
+        }
+    }
+    
+    public static void RemovePrivateDetails(ToolSettings settings) {
+        Console.WriteLine($"Removing private details...");
+        
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var assetsPath  = Path.Combine(projectPath, "Assets");
+        var scriptsPath = Path.Combine(assetsPath, "Scripts");
+        
+        var files = Directory.GetFiles(scriptsPath, "*.cs", SearchOption.AllDirectories);
+        var lines = new List<string>(1024);
+        foreach (var file in files) {
+            Console.WriteLine($"Checking {file}");
+            
+            lines.Clear();
+            lines.AddRange(File.ReadAllLines(file));
+            
+            var startCount = lines.Count;
+            for (int i = 0; i < lines.Count; i++) {
+                var line = lines[i];
+                if (line.Contains("global::") && line.Contains("PrivateImplementationDetails")) {
+                    // remove line
+                    lines.RemoveAt(i--);
+                }
+            }
+            
+            if (startCount != lines.Count) {
+                File.WriteAllLines(file, lines);
+            }
+        }
+    }
+
+    // todo: make better version to handle complex cases
+    public static void FixCheckedGetHashCodes(ToolSettings settings) {
+        Console.WriteLine($"Fixing GetHashCodes...");
+        
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var assetsPath  = Path.Combine(projectPath, "Assets");
+        var scriptsPath = Path.Combine(assetsPath, "Scripts");
+        
+        var files = Directory.GetFiles(scriptsPath, "*.cs", SearchOption.AllDirectories);
+        var lines = new List<string>(1024);
+        foreach (var file in files) {
+            Console.WriteLine($"Checking {file}");
+            
+            lines.Clear();
+            lines.AddRange(File.ReadAllLines(file));
+            
+            var ident      = 0;
+            var foundStart = false;
+            var foundEnd   = false;
+            
+            for (int i = 0; i < lines.Count; i++) {
+                var line = lines[i];
+                if (line.Contains("public override int GetHashCode()")) {
+                    lines.Insert(i + 2, "unchecked {");
+                    ident++;
+                    i += 2;
+                    
+                    Console.WriteLine(" - found GetHashCode");
+                    foundStart = true;
+                    continue;
+                }
+                
+                if (foundStart) {
+                    var trimmed = line.Trim();
+                    if (!string.IsNullOrEmpty(trimmed)) {
+                        if (trimmed[0] == '{') {
+                            ident++;
+                        } else if (trimmed[0] == '}') {
+                            ident--;
+                        }
+                    }
+                    
+                    if (ident == 0) {
+                        lines.Insert(i, "}");
+                        foundEnd = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (foundStart && foundEnd) {
+                Console.WriteLine($" - fixed");
+                File.WriteAllLines(file, lines);
+            }
+        }
+    }
+    
+    public static void ReplaceFileContents(ToolSettings settings) {
+        Console.WriteLine($"Replacing file contents...");
+        
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var files       = settings.GameSettings.Files.ReplaceContents ?? [];
+        var groups      = files.GroupBy(x => x.Path);
+        
+        foreach (var group in groups) {
+            var path = Path.Combine(projectPath, group.Key);
+            if (!File.Exists(path)) {
+                throw new FileNotFoundException(path);
+            }
+            
+            Console.WriteLine($"Fixing {path}");
+            var text = File.ReadAllText(path);
+            foreach (var replacement in group) {
+                var regex = new Regex(replacement.Find);
+                text = regex.Replace(text, replacement.Replacement);
+            }
+            File.WriteAllText(path, text);
         }
     }
 }

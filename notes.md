@@ -91,10 +91,22 @@ The main goal of this project is to make a better version of my prior build->pro
     - [ ] Remove duplicate locales in Project Settings
     - [ ] Make new collection for lang tables
     - [ ] Swap locales with new ones
-- [ ] package `ExcludePrefixesFromProject` from GameSettings
-- [ ] package `ExcludeNamesFromProject` from GameSettings
+- [?] package `ExcludePrefixesFromProject` from GameSettings
+- [?] package `ExcludeNamesFromProject` from GameSettings
 - [ ] FishNet de-generator
 - [ ] Some SOs are generating empty
+- [?] Find ways to lower RAM usage
+- [x] Remove lines like `global::_003CPrivateImplementationDetails_003E.ThrowSwitchExpressionException(spiralEffectInsensity);`
+- [ ] Valheim
+    - In `Scripts\assembly_valheim\Terminal.cs`
+        - [x] Replace `count(character.m_name, character.GetLevel());` with `count(counts, character.m_name, character.GetLevel());`
+        - [x] Replace `void count(string key, int level, int increment = 1)` with `void count(Dictionary<string, Dictionary<int, int>> counts, string key, int level, int increment = 1)`
+        - [x] Replace `P_3.` with nothing
+    - In `Scripts\Assembly-CSharp\SoftReferencePrefabSpawner.cs`
+        - [x] Replace `Utils.Instantiate(m_prefab, base.transform.parent).name = m_prefab.Name;` with `SoftReferenceableAssets.Utils.Instantiate(m_prefab, base.transform.parent).name = m_prefab.Name;`
+    - [ ] `Unable to parse file Assets/Systems/_GameMain.prefab: [Parser Failure at line 268994: Expect ':' between key and value within mapping]`
+    - [ ] Disable post processing components
+- [x] GameSettings way to do file content-string replacements
 
 ## Games Tested With
 Stable:
@@ -103,6 +115,8 @@ Stable:
 - SuperKiwi64
     - Baked meshes show black
 - Lethal Company
+- Valheim
+    - Needs a way to disable the post processing components
 
 In Progress:
 - FlipWitch
@@ -140,3 +154,4 @@ Can't compile yet:
 
 Untested on this version:
 - Content Warning
+- ULTRAKILL
