@@ -14,25 +14,6 @@ public static class ApplyFixes {
                 FixUnityNGO.RevertGeneratedCode(settings);
             }
             
-            // todo: do this per-game instead?
-            // if (packageTree.Dlls.Contains("AK.Wwise.Unity.API")) {
-            //     FixFiles.FixAmbiguousUsages(settings, [
-            //         (
-            //             ["AK.Wwise", "UnityEngine"],
-            //             "using Event = AK.Wwise.Event;"
-            //         ),
-            //     ]);
-            // }
-            
-            // if (packageTree.Dlls.Contains("ParticleImage")) {
-            //     FixFiles.FixAmbiguousUsages(settings, [
-            //         (
-            //             ["AssetKits.ParticleImage.Enumerations", "UnityEngine"],
-            //             "using PlayMode = AssetKits.ParticleImage.Enumerations.PlayMode;"
-            //         ),
-            //     ]);
-            // }
-            
             FixFiles.FixAmbiguousUsages(settings);
             FixFiles.FixCheckedGetHashCodes(settings);
             FixFiles.RemovePrivateDetails(settings);
@@ -53,13 +34,17 @@ public static class ApplyFixes {
         FixFiles.CleanupDeadMetaFiles(settings);
     }
     
-    public static async Task FixAfterRecompile(ToolSettings settings, PackageTree? packageTree) {
+    public static async Task FixAfterRecompile(ToolSettings settings, GuidDatabase guidDatabase, PackageTree? packageTree) {
         var extractData = settings.ExtractData;
         var unityPath   = settings.GetUnityPath();
         
         if (packageTree != null) {
             if (packageTree.Find("com.unity.inputsystem") != null) {
                 await FixInputSystem.FixActionsAssets(extractData, unityPath);
+            }
+            
+            if (packageTree.Find("com.unity.addressables") != null) {
+                await FixAddressables.InstallAddressables(settings, guidDatabase);
             }
         }
         

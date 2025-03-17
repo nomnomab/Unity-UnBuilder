@@ -11,6 +11,8 @@ namespace Nomnom {
         
         [InitializeOnLoadMethod]
         static void OnLoad() {
+            Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+            
             logger.Log("Overriding Unity logger...");
             Logger = new UtilLogger();
         }

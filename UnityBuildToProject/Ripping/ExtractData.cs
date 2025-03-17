@@ -171,7 +171,7 @@ public record ExtractData {
     }
     
     public static IEnumerable<string> GetSafePaths(ToolSettings settings, string rootPath) {
-        var projectPath = FixFiles.GetSettingsProjectFolder(settings);
+        var projectPath = settings.GetSettingsProjectFolder();
         
         if (Directory.Exists(projectPath)) {
             var dirs = Directory.GetDirectories(projectPath, "*.*", SearchOption.AllDirectories);

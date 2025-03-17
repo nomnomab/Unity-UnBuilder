@@ -298,7 +298,7 @@ public static partial class Utility {
             return path;
         }
         
-        return path[(index + 1)..];
+        return $"~{path[(index + 1)..]}";
     }
     
     public static string ReplacePathModifier(ToolSettings settings, string text) {

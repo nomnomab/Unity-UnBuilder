@@ -105,10 +105,19 @@ The main goal of this project is to make a better version of my prior build->pro
     - In `Scripts\Assembly-CSharp\SoftReferencePrefabSpawner.cs`
         - [x] Replace `Utils.Instantiate(m_prefab, base.transform.parent).name = m_prefab.Name;` with `SoftReferenceableAssets.Utils.Instantiate(m_prefab, base.transform.parent).name = m_prefab.Name;`
     - [ ] `Unable to parse file Assets/Systems/_GameMain.prefab: [Parser Failure at line 268994: Expect ':' between key and value within mapping]`
-    - [ ] Disable post processing components
+    - [?] A way to disable post processing components, or components in general
     - [x] Copy steam_appid.txt
 - [x] GameSettings way to do file content-string replacements
 - [ ] Manually replace shader by shader path as well
+- [ ] Addressables
+    - [x] BepInEx plugin to rip id <-> name
+    - [x] Create Addressables Settings to reimport bundles
+    - [x] Convert Legacy Bundles
+- [ ] Auto detect certain plugins that are shared across various games
+    - [ ] `$PLUGINS$/x86_64/steam_api64.dll`
+    - [ ] `$PLUGINS$/x86_64/discord_game_sdk.dll`
+    - [ ] `$MANAGED$/Facepunch.Steamworks.Win64.dll`
+    - [?] Just copy over the plugins folder by default?
 
 ## Games Tested With
 Stable:
@@ -142,6 +151,9 @@ In Progress:
 - Idea Fix
     - Localization tables are broken
     - Some SOs are generating empty
+- ULTRAKILL
+    - Addressables guids don't map yet
+    - Move root assets into categorized folders
 
 Unstable:
 - n/a
@@ -158,6 +170,5 @@ Can't compile yet:
 
 Untested on this version:
 - Content Warning
-- ULTRAKILL
 - Golden Light
 - BetonBrutal

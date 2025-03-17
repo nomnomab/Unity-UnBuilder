@@ -1,0 +1,56 @@
+using System;
+using UnityEditor;
+using System.Reflection;
+using UnityEngine;
+using System.Collections.Generic;
+using UnityEditor.AddressableAssets.Settings;
+using UnityEngine.Serialization;
+using UnityEditor.AddressableAssets;
+
+namespace Nomnom {
+    public static class InstallAddressables {
+        static string[] AssetPaths = new string[] {
+#_PATHS_#
+        };
+        
+        public static void OnLoad() {
+            Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+            
+            if (!AddressableAssetSettingsDefaultObject.Settings) {
+                // create settings
+                AddressableAssetSettingsDefaultObject.Settings = AddressableAssetSettings.Create(
+                    AddressableAssetSettingsDefaultObject.kDefaultConfigFolder,
+                    AddressableAssetSettingsDefaultObject.kDefaultConfigAssetName, 
+                    true, 
+                    true
+                );
+                
+                OfferToConvert(AddressableAssetSettingsDefaultObject.Settings);
+            }
+            
+            // now ensure each path is a ref
+            foreach (var path in AssetPaths) {
+                var asset = AssetDatabase.AssetPathToGUID(path);
+                Debug.Log(path + " is " + asset);
+                if (AddressableAssetSettingsDefaultObject.Settings.FindAssetEntry(asset, false) != null) {
+                    continue;
+                }
+                
+                AddressableAssetSettingsDefaultObject.Settings.CreateAssetReference(asset);
+                Debug.Log("created " + path);
+            }
+
+            AssetDatabase.Refresh();
+            EditorApplication.Exit(0);
+        }
+        
+        internal static void OfferToConvert(AddressableAssetSettings settings) {
+            var bundleList = AssetDatabase.GetAllAssetBundleNames();
+            if (settings != null && bundleList.Length > 0) {
+                var type = Type.GetType("UnityEditor.AddressableAssets.Settings.AddressableAssetUtility, Unity.Addressables.Editor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
+                var convertFunc = type.GetMethod("ConvertAssetBundlesToAddressables", BindingFlags.NonPublic | BindingFlags.Static);
+                convertFunc.Invoke(null, null);
+            }
+        }
+    }
+}

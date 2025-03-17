@@ -310,6 +310,8 @@ public record GuidDatabase {
                         // replace just the guid
                         lines[i] = line.Replace(guid.GuidFrom.Value, guid.GuidTo.Value);
                     }
+                    
+                    count++;
                 }
             }
         }

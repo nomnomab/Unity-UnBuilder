@@ -133,6 +133,7 @@ public sealed class PackageDetection {
             var node = packageTree.Find(id);
             if (node != null && !string.IsNullOrEmpty(version)) {
                 if (version == "no") {
+                    Console.WriteLine($"Removed package: {id}");
                     packageTree.Remove(id);
                     continue;
                 }
@@ -182,6 +183,12 @@ public sealed class PackageDetection {
         
         AnsiConsole.WriteLine($"package names: {string.Join('\n', packageNames)}");
         
+        var toRemove = PackageAssociations.ExcludeIds.Select(x => $"\"{x}\"")
+            .Concat(
+                settings.GameSettings.Packages.Overrides.Where(x => x.Version == "no")
+                    .Select(x => $"\"{x.Id}\"")
+            )
+            .Distinct();
         Utility.CopyOverScript(tempProjectPath, "InstallPackages", x => {
             var newText = x
                 // to install
@@ -190,9 +197,7 @@ public sealed class PackageDetection {
                 ))
                 .Replace("#_PACKAGE_INSTALL_COUNT", packageList.Length.ToString())
                 // to remove
-                .Replace("#_PACKAGES_TO_REMOVE_", string.Join(",\n", 
-                    PackageAssociations.ExcludeIds.Select(x => $"\"{x}\"")
-                ))
+                .Replace("#_PACKAGES_TO_REMOVE_", string.Join(",\n", toRemove))
                 .Replace("#_PACKAGE_REMOVE_COUNT", PackageAssociations.ExcludeIds.Length.ToString());
             
             AnsiConsole.WriteLine(newText);

@@ -13,7 +13,7 @@ public static class FixFiles {
         var gameName      = settings.GetGameName();
         
         // copy from settings folder
-        var projectFolder = GetSettingsProjectFolder(settings);
+        var projectFolder = settings.GetSettingsProjectFolder();
         
         if (Directory.Exists(projectFolder)) {
             AnsiConsole.WriteLine($"Custom files found for {gameName}, copying over...");
@@ -34,7 +34,7 @@ public static class FixFiles {
             //     ? Path.Combine("Plugins", Path.GetFileName(from))
             //     : to;
             var toPath   = to;
-            toPath       = Path.Combine(assetsPath, toPath);
+            toPath       = Path.Combine(assetsPath, toPath, Path.GetFileName(fromPath));
             
             AnsiConsole.WriteLine($"Copying {fromPath, 4} to {Utility.ClampPathFolders(toPath, 4)}");
             if (Directory.Exists(fromPath)) {
@@ -63,16 +63,6 @@ public static class FixFiles {
                 File.Copy(fromPath, toPath, true);
             }
         }
-    }
-    
-    public static string GetSettingsProjectFolder(ToolSettings settings) {
-        var gameName      = settings.GetGameName();
-        
-        // copy from settings folder
-        var saveFolder    = GameSettings.GetSaveFolder(gameName);
-        var projectFolder = Path.Combine(saveFolder, "Project");
-        
-        return projectFolder;
     }
     
     /// <summary>

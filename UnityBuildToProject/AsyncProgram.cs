@@ -246,7 +246,7 @@ public static class AsyncProgram {
         );
         
         // apply any appropriate fixes for the specific project
-        await ApplyFixes.FixAfterRecompile(settings, packageTree);
+        await ApplyFixes.FixAfterRecompile(settings, extractDb, packageTree);
         
         await Profiling.End();
         

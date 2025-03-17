@@ -14,7 +14,7 @@ public static class FixInputSystem {
         //     "-quit"
         // );
         
-        await UnityCLI.OpenProjectHidden("Fixing the Input System", unityPath, true, extractData.GetProjectPath(),
+        await UnityCLI.OpenProjectHidden("Fixing the Input System", unityPath, true, projectPath,
             "-executeMethod Nomnom.FixInputSystemActions.Fix"
         );
         

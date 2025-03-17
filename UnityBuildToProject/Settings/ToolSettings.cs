@@ -28,6 +28,21 @@ public record ToolSettings {
         return UnityPath.FromVersion(UnityInstalls, version);
     }
     
+    public string GetSettingsFolder() {
+        var gameName      = GetGameName();
+        
+        // copy from settings folder
+        var saveFolder    = GameSettings.GetSaveFolder(gameName);
+        return saveFolder;
+    }
+    
+    public string GetSettingsProjectFolder() {
+        var saveFolder    = GetSettingsFolder();
+        var projectFolder = Path.Combine(saveFolder, "Project");
+        
+        return projectFolder;
+    }
+    
     public void SetExtractPath(ExtractPath extractPath) {
         ExtractPath = extractPath;
     }
