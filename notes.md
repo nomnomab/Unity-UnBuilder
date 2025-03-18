@@ -113,6 +113,8 @@ The main goal of this project is to make a better version of my prior build->pro
     - [x] BepInEx plugin to rip id <-> name
     - [x] Create Addressables Settings to reimport bundles
     - [x] Convert Legacy Bundles
+    - [x] If asset in root matches path and path doesn't exist, move it
+    - [x] Handle path change with assetguid swap
 - [ ] Auto detect certain plugins that are shared across various games
     - [ ] `$PLUGINS$/x86_64/steam_api64.dll`
     - [ ] `$PLUGINS$/x86_64/discord_game_sdk.dll`

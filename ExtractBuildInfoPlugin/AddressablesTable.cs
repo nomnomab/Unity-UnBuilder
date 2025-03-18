@@ -127,7 +127,7 @@ namespace ExtractBuildInfoPlugin {
                     }
                 }
                 
-                var json = JsonConvert.SerializeObject(savedMap, Formatting.Indented);
+                var json = JsonConvert.SerializeObject(savedMap, Formatting.None);
                 File.WriteAllText(savedMapPath, json);
             }
         }

@@ -28,6 +28,10 @@ public static class FixAddressables {
     public static async Task InstallAddressables(ToolSettings settings, GuidDatabase guidDatabase) {
         FixHashes(settings);
         
+        var movedAssets = EnsureAssetLocations(settings)
+            .DistinctBy(x => x.from)
+            .ToDictionary(x => Path.GetFullPath(x.from), x => Path.GetFullPath(x.to));
+        
         var projectPath = settings.ExtractData.GetProjectPath();
         var file        = Utility.CopyOverScript(projectPath, "InstallAddressables", x => {
             var maps  = GetMaps(settings);
@@ -47,7 +51,7 @@ public static class FixAddressables {
             "-executeMethod Nomnom.InstallAddressables.OnLoad"
         );
         
-        FixAssets(settings, guidDatabase);
+        FixAssets(settings, guidDatabase, movedAssets);
         
         File.Delete(file);
     }
@@ -146,7 +150,72 @@ public static class FixAddressables {
         }
     }
     
-    public static void FixAssets(ToolSettings settings, GuidDatabase guidDatabase) {
+    public static IEnumerable<(string from, string to)> EnsureAssetLocations(ToolSettings settings) {
+        Console.WriteLine($"Fixing Addressables asset locations...");
+        
+        var projectPath = settings.ExtractData.GetProjectPath();
+        var assetsFolder = Path.Combine(
+            projectPath,
+            "Assets"
+        );
+        
+        foreach (var map in GetMaps(settings)) {
+            foreach (var (_, value) in map.Keys) {
+                var file = Path.Combine(projectPath, value.FileName);
+                if (File.Exists(file)) continue;
+                
+                // file does not exist at this path, check the root
+                var rootPath = Path.Combine(
+                    assetsFolder,
+                    Path.GetFileName(file)
+                );
+                
+                if (!File.Exists(rootPath)) {
+                    Console.WriteLine($"{rootPath} does not exist");
+                    continue;
+                }
+                
+                // file exists in root, move it
+                File.Move(rootPath, file);
+                yield return (rootPath, file);
+                
+                // if there is a meta file, move that too
+                var metaPath = rootPath + ".meta";
+                if (File.Exists(metaPath)) {
+                    File.Move(metaPath, file + ".meta");
+                    yield return (metaPath, file + ".meta");
+                }
+                
+                // is there an associated folder?
+                if (Path.GetExtension(file) == ".unity") {
+                    var folder = Path.Combine(
+                        Path.GetDirectoryName(rootPath)!,
+                        Path.GetFileNameWithoutExtension(rootPath)
+                    );
+                    
+                    if (Directory.Exists(folder)) {
+                        // move the folder
+                        var newFolder = Path.Combine(
+                            Path.GetDirectoryName(file)!,
+                            Path.GetFileNameWithoutExtension(rootPath)
+                        );
+                        
+                        Directory.Move(folder, newFolder);
+                        yield return (folder, newFolder);
+                        
+                        // if there is a meta file, move that too
+                        metaPath = folder + ".meta";
+                        if (File.Exists(metaPath)) {
+                            File.Move(metaPath, newFolder + ".meta");
+                            yield return (metaPath, newFolder + ".meta");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    public static void FixAssets(ToolSettings settings, GuidDatabase guidDatabase, Dictionary<string, string> movedAssets) {
         Console.WriteLine($"Fixing Addressables assets...");
         
         var projectPath = settings.ExtractData.GetProjectPath();
@@ -154,6 +223,24 @@ public static class FixAddressables {
             projectPath,
             "Assets"
         );
+        
+        Console.WriteLine($"moved assets:");
+        var movedAssetsFlipped = new Dictionary<string, string>(movedAssets.Count);
+        foreach (var (from, to) in movedAssets) {
+            Console.WriteLine($"[{from}] {to}");
+            
+            var newFrom = Path.GetFullPath(from.Replace(
+                projectPath,
+                settings.ExtractData.Config.ProjectRootPath
+            ));
+            
+            var newTo = Path.GetFullPath(to.Replace(
+                projectPath,
+                settings.ExtractData.Config.ProjectRootPath
+            ));
+            
+            movedAssetsFlipped[newTo] = newFrom;
+        }
         
         // todo: replace m_AssetGUID: guid with matching guid
         // todo: get guid from m_AssetGUID -> asset name -> guid found
@@ -169,9 +256,12 @@ public static class FixAddressables {
                         projectPath,
                         settings.ExtractData.Config.ProjectRootPath
                     ));
+                    
                     if (!guidDatabase.FilePathToGuid.TryGetValue(file, out var guid)) {
-                        Console.WriteLine($"no filePathToGuid for {file}");
-                        continue;
+                        if (!movedAssetsFlipped.TryGetValue(file, out var moved) || !guidDatabase.FilePathToGuid.TryGetValue(moved, out guid)) {
+                            Console.WriteLine($"no filePathToGuid for {file}");
+                            continue;
+                        }
                     }
                     
                     // id now maps to guid
@@ -182,89 +272,6 @@ public static class FixAddressables {
                 }
             }
         }
-        // foreach (var map in GetMaps(settings)) {
-        //     foreach (var (id, value) in map.Keys) {
-        //         // does this file exist?
-        //         // it can either exist all in the root of the project (no duplicates)
-        //         // or in sub-folders (possible duplicates)
-        //         var file = Path.Combine(assetsFolder, value.FileName);
-        //         if (File.Exists(file)) {
-        //             // take the file's guid
-        //             file = file.Replace(
-        //                 projectPath,
-        //                 settings.ExtractData.Config.ProjectRootPath
-        //             );
-        //             if (!guidDatabase.FilePathToGuid.TryGetValue(file, out var guid)) {
-        //                 continue;
-        //             }
-                    
-        //             // id now maps to guid
-        //             idToGuidLookup[id] = guid;
-        //             Console.WriteLine($"[{id}] {guid} for: {file}");
-        //             continue;
-        //         }
-                
-        //         // check in subfolder since it doesn't exist in the root
-        //         string? folderToCheck = Path.GetExtension(value.FileName) switch {
-        //             ".anim"       => "AnimationClip",
-        //             ".controller" => "Controller",
-        //             // ".ogg" or 
-        //             // ".mp3" or
-        //             // ".wav"        => "AudioClip",
-        //             // ".ttf" or
-        //             // ".otf"        => "Font",
-        //             ".prefab"     => "GameObject",
-        //             ".mat"        => "Material",
-        //             ".asset"      => "MonoBehaviour",
-        //             ".unity"      => "Scenes",
-        //             ".shader"     => "Shader",
-        //             _ => null
-        //         };
-                
-        //         string[] files;
-        //         if (folderToCheck != null) {
-        //             var folderPath = Path.Combine(assetsFolder, folderToCheck);
-        //             files          = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories);
-        //         } else {
-        //             files          = Directory.GetFiles(assetsFolder, "*.*", SearchOption.AllDirectories);
-        //         }
-                
-        //         var foundFiles = files.Where(x => Path.GetFileName(x) == value.FileName)
-        //             .ToArray();
-                    
-        //         // found the file
-        //         if (foundFiles.Length > 0) {
-        //             // pick the first one and warn
-        //             Console.WriteLine($"[{id}] has duplicates:\n{string.Join('\n', foundFiles)}");
-                    
-        //             var wasFound = false;
-        //             foreach (var found in foundFiles.Select(x => {
-        //                 return x.Replace(
-        //                     settings.ExtractData.GetProjectPath(),
-        //                     settings.ExtractData.Config.ProjectRootPath
-        //                 );
-        //             })) {
-        //                 if (!guidDatabase.FilePathToGuid.TryGetValue(found, out var foundGuid)) {
-        //                     Console.WriteLine($" - no guid for {found} in:\n{string.Join("\n", guidDatabase.FilePathToGuid.Keys)}");
-        //                     continue;
-        //                 }
-                        
-        //                 idToGuidLookup[id] = foundGuid;
-        //                 Console.WriteLine($"[{id}] {foundGuid} for: {found}");
-        //                 wasFound = true;
-        //                 break;
-        //             }
-                    
-        //             if (wasFound) {
-        //                 Console.WriteLine(" - was found");
-        //                 continue;
-        //             }
-        //         }
-
-        //         Console.WriteLine($"[{id}] does not exist: {file}");
-        //         continue;
-        //     }
-        // }
         
         Console.WriteLine($"Found {idToGuidLookup.Count} ids to find and replace");
         
@@ -279,10 +286,14 @@ public static class FixAddressables {
         var assetGuidRegex = new Regex(@"m_AssetGUID:\s(?<guid>[0-9A-Za-z]+)", RegexOptions.Compiled);
         foreach (var (guid, paths) in guidDatabase.AssociatedFilePaths) {
             foreach (var path in paths.Distinct()) {
-                var outputPath = path.Replace(
+                var outputPath = Path.GetFullPath(path.Replace(
                     settings.ExtractData.Config.ProjectRootPath,
                     projectPath
-                );
+                ));
+                
+                if (movedAssets.TryGetValue(outputPath, out var movedTo)) {
+                    outputPath = movedTo;
+                }
                 
                 if (!File.Exists(path)) continue;
                 if (!Path.HasExtension(path)) continue;
