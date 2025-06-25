@@ -70,6 +70,12 @@ There is also a `[GAME NAME]/exclude/Resources` folder where you can put files i
 the final project at the same locations. This is useful if you get a finished package list and want to supply a `Resources/Packages/manifest.json`. Or if
 the project needs to fix up the old `InputSystem` via `Resources/ProjectSettings/InputManager.asset`.
 
+Most projects will need to experiment with what packages are actually used, and which versions are actually needed. The tool at the moment
+attempts to determine which packages are there for the dlls present, but it isn't fantastic as a final result.
+
+Tweaks and exclusions can be provided
+to the `GameConfig.Packages` object, and once you figure out all the packages needed, you can copy the `/UnityProject/Packages/manifest.json` into `[GAME NAME]/exclude/Resources/Packages/manifest.json` to skip the entire package process for future usage.
+
 ## Sharing Game Config
 
 Game configs, or rather the dotnet project folder for a specific game, is essentially what the tool uses to work for that specific game.
