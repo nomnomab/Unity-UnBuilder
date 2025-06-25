@@ -66,9 +66,9 @@ The project is given a wrapper for the `GameSettings` it expects it to return, w
 
 This project is built by this tool and the resulting dll is imported automatically for usage.
 
-There is also a `[GAME NAME]/exclude/resources` folder where you can put files in the same structure as a unity project, and the tool will copy them into
-the final project at the same locations. This is useful if you get a finished package list and want to supply a `resources/Packages/manifest.json`. Or if
-the project needs to fix up the old `InputSystem` via `resources/ProjectSettings/InputManager.asset`.
+There is also a `[GAME NAME]/exclude/Resources` folder where you can put files in the same structure as a unity project, and the tool will copy them into
+the final project at the same locations. This is useful if you get a finished package list and want to supply a `Resources/Packages/manifest.json`. Or if
+the project needs to fix up the old `InputSystem` via `Resources/ProjectSettings/InputManager.asset`.
 
 ## Sharing Game Config
 
