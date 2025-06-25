@@ -1,0 +1,98 @@
+using System;
+using UnityEditor;
+using System.Reflection;
+using UnityEngine;
+using System.Collections.Generic;
+using UnityEditor.AddressableAssets.Settings;
+using UnityEngine.Serialization;
+using UnityEditor.AddressableAssets;
+
+namespace Nomnom {
+    public static class InstallAddressables {
+        static string[] AssetPaths = new string[] {
+#_PATHS_#
+        };
+        
+        static List<(string, string)> PathToKey = new List<(string, string)>() {
+#_KEYS_#
+        };
+        
+        public static void OnLoad() {
+            Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+            
+            if (!AddressableAssetSettingsDefaultObject.Settings) {
+                // create settings
+                AddressableAssetSettingsDefaultObject.Settings = AddressableAssetSettings.Create(
+                    AddressableAssetSettingsDefaultObject.kDefaultConfigFolder,
+                    AddressableAssetSettingsDefaultObject.kDefaultConfigAssetName, 
+                    true, 
+                    true
+                );
+                
+                OfferToConvert(AddressableAssetSettingsDefaultObject.Settings);
+            }
+            
+            var settings = AddressableAssetSettingsDefaultObject.Settings;
+            
+            // now ensure each path is a ref
+            foreach (var path in AssetPaths) {
+                var asset = AssetDatabase.AssetPathToGUID(path);
+                Debug.Log(path + " is " + asset);
+                
+                if (settings.FindAssetEntry(asset, false) != null) {
+                    continue;
+                }
+                
+                settings.CreateAssetReference(asset);
+                Debug.Log("created " + path);
+            }
+            
+            foreach (var path in PathToKey) {
+                var path2 = path.Item1;
+                var asset = AssetDatabase.AssetPathToGUID(path2);
+                Debug.Log(path2 + " is " + asset);
+                
+                if (settings.FindAssetEntry(asset, false) != null) {
+                    continue;
+                }
+                
+                settings.CreateAssetReference(asset);
+                Debug.Log("created " + path2);
+            }
+            
+            // now ensure each key is correct
+            var entriesAdded = new List<AddressableAssetEntry>();
+            var group        = settings.DefaultGroup;
+            
+            foreach (var pair in PathToKey) {
+                var path = pair.Item1;
+                var key  = pair.Item2;
+                var guid = AssetDatabase.AssetPathToGUID(path);
+                
+                var entry     = settings.CreateOrMoveEntry(guid, group, readOnly: false, postEvent: false);
+                if (entry == null) {
+                   Debug.LogWarning(path + " and " + key + " has no entry");
+                   continue;
+                }
+                entry.address = key;
+                entriesAdded.Add(entry);
+                
+                Debug.Log("set address of " + path + " to " + key);
+            }
+            
+            settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, entriesAdded, true);
+
+            AssetDatabase.Refresh();
+            EditorApplication.Exit(0);
+        }
+        
+        internal static void OfferToConvert(AddressableAssetSettings settings) {
+            var bundleList = AssetDatabase.GetAllAssetBundleNames();
+            if (settings != null && bundleList.Length > 0) {
+                var type = Type.GetType("UnityEditor.AddressableAssets.Settings.AddressableAssetUtility, Unity.Addressables.Editor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
+                var convertFunc = type.GetMethod("ConvertAssetBundlesToAddressables", BindingFlags.NonPublic | BindingFlags.Static);
+                convertFunc.Invoke(null, null);
+            }
+        }
+    }
+}

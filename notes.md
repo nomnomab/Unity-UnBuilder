@@ -1,5 +1,73 @@
 The main goal of this project is to make a better version of my prior build->project conversion.
 
+## Games Tested With
+
+#### Stable:
+- Lunacid (~20min)
+    - Some dark mesh surfaces
+- Toree3D (~5min)
+- SuperKiwi64 (~5min)
+    - Baked meshes show black, dunno why
+- Lethal Company
+- Valheim
+    - Needs a way to disable the post processing components, once those are disabled the game is basically fine
+- How Fish is Made
+    - Needs a better replacement shader for psx
+
+#### In Progress:
+- FlipWitch
+    - Wwise missing DLLs
+- Gun Frog
+    - FlatKit asset for shaders (paid)
+    - StylizedWater asset for shaders (paid)
+    - CartoonGrass asset for shaders (paid)
+    - Localization tables are broken
+- Outpath
+    - AStar Free
+    - FishNet
+        - Needs de-generator
+    - UI Particle Image (paid)
+- Risk of Rain 2
+    - ReWired (paid)
+- Rain World
+    - ReWired (paid)
+- Idea Fix
+    - Localization tables are broken
+    - Some SOs are generating empty
+- ULTRAKILL
+    - Addressables guids don't map yet
+    - Move root assets into categorized folders
+
+#### Unstable:
+- n/a
+
+#### Can't compile yet:
+- Enter the Gungeon
+    - 2017
+    - ReWired (paid)
+    - Uses UnityScript :/
+- Magicite
+    - Unity 5
+    - Shaders aren't matching
+    - Uses UnityScript :/
+
+Untested on this version:
+- Content Warning
+- Golden Light
+- BetonBrutal
+
+## Roadblocks
+
+- [ ] WWise integration
+- [ ] Localization package loads empty data
+- [ ] Better shader decompilation
+- [ ] Handle Unity5 + UnityScript
+- [ ] Addressables
+- [ ] ReWired
+- [ ] FishNet un-generator
+- [ ] Baked mesh displays surfaces as black most of the time
+- [ ] Somehow drastically lower memory usage while fixing guids
+
 ## Goals:
 - Determine Unity version automatically.
 - Extract usable scripts.
@@ -28,7 +96,6 @@ The main goal of this project is to make a better version of my prior build->pro
         These would be used to fix the guids located in the normal assets, like SOs and
         prefabs.
 - [ ] Verify Unity project
-
 
 ## Other
 
@@ -120,57 +187,14 @@ The main goal of this project is to make a better version of my prior build->pro
     - [ ] `$PLUGINS$/x86_64/discord_game_sdk.dll`
     - [ ] `$MANAGED$/Facepunch.Steamworks.Win64.dll`
     - [?] Just copy over the plugins folder by default?
-
-## Games Tested With
-Stable:
-- Lunacid
-- Toree3D
-- SuperKiwi64
-    - Baked meshes show black
-- Lethal Company
-- Valheim
-    - Needs a way to disable the post processing components
-- How Fish is Made
-    - Needs a better replacement shader for psx
-
-In Progress:
-- FlipWitch
-    - Wwise missing DLLs
-- Gun Frog
-    - FlatKit asset for shaders (paid)
-    - StylizedWater asset for shaders (paid)
-    - CartoonGrass asset for shaders (paid)
-    - Localization tables are broken
-- Outpath
-    - AStar Free
-    - FishNet
-        - Needs de-generator
-    - UI Particle Image (paid)
-- Risk of Rain 2
-    - ReWired (paid)
-- Rain World
-    - ReWired (paid)
-- Idea Fix
-    - Localization tables are broken
-    - Some SOs are generating empty
-- ULTRAKILL
-    - Addressables guids don't map yet
-    - Move root assets into categorized folders
-
-Unstable:
-- n/a
-
-Can't compile yet:
-- Enter the Gungeon
-    - 2017
-    - ReWired (paid)
-    - Uses UnityScript :/
-- Magicite
-    - Unity 5
-    - Shaders aren't matching
-    - Uses UnityScript :/
-
-Untested on this version:
-- Content Warning
-- Golden Light
-- BetonBrutal
+- [ ] Ultrakill
+    - [x] Unity UI scripts are not mapping over
+    - [ ] Root scenes are not being added to addressables
+          Seems they don't have a file extension, nor a full path so they get
+          excluded from the guid remapping stage :/
+    - [ ] Scenes need to have "simplified names" in the bundles
+- [ ] Invert the logic of the AssetRipper skipping and package skipping so it will automatically detect the exe hash + the ripping root
+- [/] Make the game settings file a better format
+      Different lang? Ini?
+- [ ] Skip steps that deal with the package manager for versions like Unity 5
+- [ ] Fetch the export options without running the AssetRipper scanner if skipping AR

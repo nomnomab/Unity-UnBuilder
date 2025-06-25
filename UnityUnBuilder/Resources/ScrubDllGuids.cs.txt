@@ -1,0 +1,82 @@
+using System;
+using System.IO;
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+namespace Nomnom {
+    [Serializable]
+    class ScrubbedDlls {
+        public List<ScrubbedDll> Dlls = new List<ScrubbedDll>();
+    }
+    
+    [Serializable]
+    class ScrubbedDll {
+        public string FullName;
+        public string Path;
+        public string Guid;
+        public string FileID;
+        public string FileType;
+    }
+
+    public static class ScrubDllGuids {
+        public static void OnLoad() {
+            var dlls  = new ScrubbedDlls();
+            var guids = AssetDatabase.FindAssets("", new string[] {
+                "Assets"
+            });
+            
+            foreach (var g in guids) {
+                var path = AssetDatabase.GUIDToAssetPath(g);
+                if (!path.EndsWith(".dll")) continue;
+                
+                var subAssets = AssetDatabase.LoadAllAssetsAtPath(path);
+                foreach (var obj in subAssets) {
+                    string guid;
+                    long file;
+                    
+#if UNITY_2018_OR_NEWER
+                    if (!AssetDatabase.TryGetGUIDAndLocalFileIdentifier(obj, out guid, out file)) {
+                        continue;
+                    }
+#else
+                    var guidPath = AssetDatabase.GetAssetPath(obj);
+                    guid = AssetDatabase.AssetPathToGUID(guidPath);
+                    // todo: figure this out in a better way?
+                    file = 11500000;
+#endif
+
+                    // todo: file type
+                    string fullName = null;
+                    MonoScript monoScript = obj as MonoScript;
+                    if (monoScript) {
+                        var foundClass = monoScript.GetClass();
+                        if (foundClass != null) {
+                            fullName = foundClass.FullName;
+                        }
+                    }
+                    
+                    if (fullName == null) {
+                        fullName = "null name";
+                    }
+                    
+                    dlls.Dlls.Add(new ScrubbedDll {
+                        FullName = fullName,
+                        Path     = Path.GetFullPath(path),
+                        Guid     = guid,
+                        FileID   = file.ToString(),
+                        FileType = "3",
+                    });
+                }
+            }
+            
+            {
+                var path = Path.Combine(Application.dataPath, "..", "dlls_output.json");
+                Debug.Log("Writing json to " + dlls);
+                
+                var json = JsonUtility.ToJson(dlls, true);
+                File.WriteAllText(path, json);
+            }
+        }
+    }
+}
