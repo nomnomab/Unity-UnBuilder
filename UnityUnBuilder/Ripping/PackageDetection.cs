@@ -73,14 +73,19 @@ public sealed class PackageDetection {
         
         // fetch from game assemblies
         foreach (var name in GetGameAssemblies(settings)) {
-            var package = PackageAssociations.FindAssociationFromDll(name);
-            if (package == null) {
-                failedPackages.Add(name);
-            } else {
+            var found = false;
+            foreach (var package in PackageAssociations.FindAssociationsFromDll(name)) {
+                found = true;
+                
                 if (foundPackages.Contains(package)) {
                     continue;
                 }
+                
                 foundPackages.Add(package);
+            }
+            
+            if (!found) {
+                failedPackages.Add(name);
             }
         }
         
@@ -164,7 +169,7 @@ public sealed class PackageDetection {
         
         // remove packages that have no dll specifically
         var dlls = GetGameAssemblies(settings);
-        if (!dlls.Any(x => PackageAssociations.FindAssociationFromDll(x)?.Id == "com.unity.inputsystem")) {
+        if (!dlls.Any(x => PackageAssociations.FindAssociationsFromDll(x).Any(y => y.Id == "com.unity.inputsystem"))) {
             packageTree.Remove("com.unity.inputsystem");
         }
     }
@@ -187,7 +192,7 @@ public sealed class PackageDetection {
         
         AnsiConsole.WriteLine($"package names: {string.Join('\n', packageNames)}");
         
-        var toRemove = PackageAssociations.ExcludeIds.Select(x => $"\"{x}\"")
+        var toRemove = PackageDatabase.IgnorePackages.Select(x => $"\"{x}\"")
             .Concat(
                 settings.GameSettings.Packages.Overrides.Where(x => x.Exclude)
                     .Select(x => $"\"{x.Id}\"")
@@ -202,7 +207,7 @@ public sealed class PackageDetection {
                 .Replace("#_PACKAGE_INSTALL_COUNT", packageList.Length.ToString())
                 // to remove
                 .Replace("#_PACKAGES_TO_REMOVE_", string.Join(",\n", toRemove))
-                .Replace("#_PACKAGE_REMOVE_COUNT", PackageAssociations.ExcludeIds.Length.ToString());
+                .Replace("#_PACKAGE_REMOVE_COUNT", PackageDatabase.IgnorePackages.Length.ToString());
             
             AnsiConsole.WriteLine(newText);
             return newText;
@@ -260,30 +265,11 @@ public sealed class PackageDetection {
             
             File.WriteAllText(projectSettingsPath, sb.ToString());
         }
-        
-        // cache the manifest
-        // var manifestPath = Path.Combine(tempProjectPath, "Packages", "manifest.json");
-        // var cachePath    = Path.Combine(tempProjectPath, "..", "manifest.json");
-        // File.Copy(manifestPath, cachePath, true);
-        
-        // var lockFilePath = Path.Combine(tempProjectPath, "Packages", "packages-lock.json");
-        // if (File.Exists(lockFilePath)) {
-        //     cachePath        = Path.Combine(tempProjectPath, "..", "packages-lock.json");
-        //     File.Copy(lockFilePath, cachePath, true);
-        // }
     }
     
     private static void AddPackagesToManifest(ProgramArgs args, string projectPath, IEnumerable<(string, string)> packages) {
         var manifestPath = Path.Combine(projectPath, "Packages", "manifest.json");
-        // var cachePath    = Path.Combine(projectPath, "..", "manifest.json");
-        
         if (args.SkipPackageFetching) {
-            // if (!File.Exists(cachePath)) {
-            //     AnsiConsole.MarkupLine($"[red]Error[/]: no cache manifest file found, make sure you run without --skip_pack at least once.");
-            //     throw new FileNotFoundException(cachePath);
-            // }
-            
-            // File.Copy(cachePath, manifestPath, true);
             return;
         }
         
@@ -313,7 +299,7 @@ public sealed class PackageDetection {
             }
         }
         
-        foreach (var package in PackageAssociations.ExcludeIds) {
+        foreach (var package in PackageDatabase.IgnorePackages) {
             try {
                 dependencies.Remove(package);
             } catch { }
@@ -331,9 +317,9 @@ public sealed class PackageDetection {
         var gameAssembliesPath = Path.Combine(extractRootPath, "GameAssemblies");
         var dlls               = Directory.GetFiles(gameAssembliesPath, "*.dll", SearchOption.TopDirectoryOnly);
         
-        var prefixExclusions = PackageAssociations.ExcludePrefixesFromPackages
+        var prefixExclusions = PackageDatabase.IgnoreDllPrefixes
             .Concat(settings.GameSettings.Files.ScriptFolderPrefixExcludeFromGuids ?? []);
-        var nameExclusions   = PackageAssociations.ExcludeNamesFromPackages
+        var nameExclusions   = PackageDatabase.IgnoreDlls
             .Concat(settings.GameSettings.Files.ScriptFolderNameExcludeFromGuids ?? []);
         foreach (var dll in dlls.OrderBy(x => x)) {
             if (dll == null) continue;
@@ -375,7 +361,7 @@ public class UnityPackages {
     }
     
     public void WriteToDisk(string name) {
-        var namePath = Path.Combine(Paths.LogsFolder, name);
+        var namePath = Path.Combine(Paths.ToolLogsFolder, name);
         File.Delete(namePath);
         
         using var writer = new StreamWriter(namePath);

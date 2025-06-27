@@ -111,7 +111,7 @@ public record RoslynDatabase {
         var toReplace = new HashSet<GuidDatabaseMerge>(capacity: 512);
         var fromGuids = new HashSet<UnityGuid>(capacity: 1024);
         
-        var logFile = Path.Combine(Paths.LogsFolder, "merge_into.log");
+        var logFile = Path.Combine(Paths.ToolLogsFolder, "merge_into.log");
         File.Delete(logFile);
         
         using (var writer = new StreamWriter(logFile)) {
@@ -208,7 +208,7 @@ public record RoslynDatabase {
         if (Directory.Exists(scriptsFolder)) {
             foreach (var dir in Directory.GetDirectories(scriptsFolder, "*", SearchOption.TopDirectoryOnly)) {
                 var name = Path.GetFileNameWithoutExtension(dir);
-                if (PackageAssociations.FindAssociationFromDll(name) != null || PackageAssociations.ExcludeNamesFromProject.Contains(name) || PackageAssociations.ExcludePrefixesFromProject.Any(name.StartsWith)) {
+                if (PackageAssociations.FindAssociationsFromDll(name).Any() || PackageDatabase.ExcludeAssembliesFromProject.Contains(name) || PackageDatabase.IgnoreAssemblyPrefixes.Any(name.StartsWith)) {
                     exclusionFolders.Add(dir);
                 }
             }

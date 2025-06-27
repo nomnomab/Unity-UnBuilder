@@ -169,7 +169,7 @@ public static class UnityCLI {
         AnsiConsole.MarkupLine($"Exit Code: {process.ExitCode}");
         
         if (process.ExitCode != 0) {
-            throw new Exception($"ExitCode was {process.ExitCode}. Please refer to the log files to find the error!\n\n{Paths.LogsFolder}");
+            throw new Exception($"ExitCode was {process.ExitCode}. Please refer to the log files to find the error!\n\n{Paths.ToolLogsFolder}");
         }
         
         await Task.Delay(500);

@@ -5,14 +5,6 @@ using Tomlet;
 namespace Nomnom;
 
 public static class Settings {
-    public static string FolderPath {
-        get {
-            var path = Path.Combine(Paths.ExeFolder, "settings");
-            Directory.CreateDirectory(path);
-            return path;
-        }
-    }
-    
     public static T? Load<T>(string savePath, T defaultValue, Action<T>? verify = null) {
         if (!File.Exists(savePath)) {
             Save(savePath, defaultValue);

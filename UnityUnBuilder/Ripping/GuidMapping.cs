@@ -18,7 +18,8 @@ public static class GuidMapping {
     }
     
     public static async Task ExtractDllGuids(ToolSettings settings, GuidDatabase db, RoslynDatabase typeDb, string projectPath) {
-        var unityPath       = settings.GetUnityPath();
+        var unityPath = settings.GetUnityPath();
+        
         Utility.CopyOverScript(projectPath, "ScrubDllGuids");
         
         await UnityCLI.OpenProjectHidden("Opening project to grab dll guids", unityPath, true, projectPath,

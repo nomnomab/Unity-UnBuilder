@@ -24,7 +24,7 @@ internal static class DotNetProject {
         return true;
     }
     
-    public static void New(string settingsProjectFolder, string root, string projectRoot) {
+    public static void New(string exeRoot, string projectRoot) {
         var name = Path.GetFileNameWithoutExtension(projectRoot);
         if (!Directory.Exists(projectRoot)) {
             Directory.CreateDirectory(projectRoot);
@@ -46,9 +46,7 @@ internal static class DotNetProject {
         LogOutputs(process);
         
         EnsureContents(projectRoot);
-        AddProjectReference(projectRoot, Path.Combine(root, "..", "UnityUnBuilder.Game.dll"));
-        
-        Directory.CreateDirectory(settingsProjectFolder);
+        AddProjectReference(projectRoot, Path.Combine(exeRoot, "..", "UnityUnBuilder.Game.dll"));
 
         AnsiConsole.WriteLine($"Project created at '{projectRoot}'");
     }
@@ -270,8 +268,8 @@ project.lock.json
 # UWP Projects
 AppPackages/
         
-/exclude/UnityProject
-/output
+/exclude
+/resources
 /bin
 /obj
 ";
@@ -301,6 +299,7 @@ AppPackages/
         
         var ignoreFolders = new string[] {
             @"exclude\**",
+            @"resources\**",
         };
         
         foreach (var folder in ignoreFolders) {
@@ -362,7 +361,7 @@ public static class GameSettingsProvider {
     }
     
     public static string Build(string projectRoot) {
-        var output  = Path.Combine(projectRoot, "output");
+        var output  = Path.Combine(projectRoot, "exclude/output");
         var process = new Process() {
             StartInfo = new ProcessStartInfo() {
                 FileName               = "dotnet",

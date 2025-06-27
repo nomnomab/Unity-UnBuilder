@@ -61,14 +61,14 @@ dotnet build -c Release
 UnityUnBuilder.exe --game_path "Path/To/Game.exe"
 ```
 
-When supplying a game path to the tool and running it, it will generate a dotnet project for you in `/settings/[GAME NAME]` to modify with whatever your specific game requires.
+When supplying a game path to the tool and running it, it will generate a dotnet project for you in `/games/[GAME NAME]` to modify with whatever your specific game requires.
 The project is given a wrapper for the `GameSettings` it expects it to return, which has various properties to edit.
 
 This project is built by this tool and the resulting dll is imported automatically for usage.
 
-There is also a `[GAME NAME]/exclude/Resources` folder where you can put files in the same structure as a unity project, and the tool will copy them into
-the final project at the same locations. This is useful if you get a finished package list and want to supply a `Resources/Packages/manifest.json`. Or if
-the project needs to fix up the old `InputSystem` via `Resources/ProjectSettings/InputManager.asset`.
+There is also a `[GAME NAME]/exclude/Resources/UnityProject` folder where you can put files in the same structure as a unity project, and the tool will copy them into
+the final project at the same locations. This is useful if you get a finished package list and want to supply a `Resources/UnityProject/Packages/manifest.json`. Or if
+the project needs to fix up the old `InputSystem` via `Resources/UnityProject/ProjectSettings/InputManager.asset`.
 
 Most projects will need to experiment with what packages are actually used, and which versions are actually needed. The tool at the moment
 attempts to determine which packages are there for the dlls present, but it isn't fantastic as a final result.
@@ -80,20 +80,18 @@ to the `GameConfig.Packages` object, and once you figure out all the packages ne
 
 Game configs, or rather the dotnet project folder for a specific game, is essentially what the tool uses to work for that specific game.
 
-Make sure they are put into a folder with the same name as the game:
+The structures looks like this (the tool generates the structure on first run of a game):
 ```
 UnityUnBuilder.exe
 /settings
     /mygame
-        /exclude
-            /Resources
+        /resources
         mygame.csproj
         # other files
 ```
 
 Make sure you exclude folders such as:
-- `/exclude/UnityProject`: This is the final project. This contains assets that **cannot** be re-distributed.
-- `/output`: This is where the dll is built and used from.
+- `/exclude`: Stores cache files.
 
 ## Third Party
 

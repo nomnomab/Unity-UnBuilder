@@ -37,7 +37,7 @@ public static class LogFile {
 
 partial class LogFileWriter : TextWriter {
     private const string NAME = "tool.log";
-    private static string Path => System.IO.Path.Combine(Paths.LogsFolder, NAME);
+    private static string Path => System.IO.Path.Combine(Paths.ToolLogsFolder, NAME);
     
     // private static readonly Regex _bracketRegex = BracketRegex();
     

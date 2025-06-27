@@ -7,7 +7,7 @@ namespace Nomnom;
 
 public static class FixAddressables {
     static IEnumerable<SavedResourceLocationMap> GetMaps(ToolSettings settings) {
-        var settingsFolder = settings.GetSettingsFolder();
+        var settingsFolder = settings.GetGameFolder();
         var mapsFolder     = Path.Combine(settingsFolder, "Addressables");
         if (!Directory.Exists(mapsFolder)) {
             yield break;

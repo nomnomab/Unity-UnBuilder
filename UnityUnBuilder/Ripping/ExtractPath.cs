@@ -27,15 +27,7 @@ public record ExtractPath(string folderPath) {
             throw new FileNotFoundException(exePath);
         }
         
-        var outputPath = Path.GetFullPath(
-            Path.Combine(
-                exePath,
-                "..",
-                "output",
-                folderName
-            )
-        );
-        
+        var outputPath = Paths.GetGameFolder(folderName);
         return FromFolder(outputPath);
     }
 };

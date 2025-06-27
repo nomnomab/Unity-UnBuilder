@@ -20,7 +20,9 @@ public record ToolSettings {
     public GameData GameData { get; private set; } = null!;
     
     public string GetGameName() {
-        return Path.GetFileNameWithoutExtension(ProgramArgs.GameExecutablePath);
+        return GameSettings.GetGameName(
+            Path.GetFileNameWithoutExtension(ProgramArgs.GameExecutablePath)
+        );
     }
     
     public UnityPath GetUnityPath(string? version = null) {
@@ -28,20 +30,10 @@ public record ToolSettings {
         return UnityPath.FromVersion(UnityInstalls, version);
     }
     
-    public string GetSettingsFolder() {
+    public string GetGameFolder() {
         var gameName = GetGameName();
         
-        // copy from settings folder
-        var saveFolder = GameSettings.GetSaveFolder(Settings.FolderPath, gameName);
-        
-        return saveFolder;
-    }
-    
-    public string GetSettingsProjectFolder() {
-        var saveFolder    = GetSettingsFolder();
-        var projectFolder = Path.Combine(saveFolder, "exclude/Resources");
-        
-        return projectFolder;
+        return Paths.GetGameFolder(gameName);
     }
     
     public void SetExtractPath(ExtractPath extractPath) {
@@ -102,15 +94,17 @@ public record ToolSettings {
         //     throw new Exception("No game output path provided!");
         // }
         
-        var gameName     = Path.GetFileNameWithoutExtension(args.GameExecutablePath);
-        var gameSettings = GameSettings.Load(toolSettings.GetSettingsProjectFolder(), Settings.FolderPath, gameName);
+        
+        var gameName     = toolSettings.GetGameName();
+        var gameSettings = GameSettings.Load(gameName);
         if (gameSettings == null) {
             throw new Exception("Could not load GameSettings!");
         }
         
+        // no output path, so put the output project inside the game folder
         if (string.IsNullOrEmpty(args.OutputPath)) {
             args.OutputPath = Path.GetFullPath(
-                Path.Combine(GameSettings.GetSavePath(Settings.FolderPath, gameName), "exclude/UnityProject")
+                Paths.GetGameExcludeUnityProjectFolder(gameName)
             );
         }
         

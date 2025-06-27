@@ -37,7 +37,7 @@ public static class AsyncProgram {
         
         // get extraction information for AssetRipper
         var gameName         = settings.GetGameName();
-        var extractPath      = ExtractPath.FromOutputFolder($"output_{gameName}");
+        var extractPath      = ExtractPath.FromOutputFolder(Path.Combine(gameName, "exclude/Ripped"));
         var (_, gameData, _) = Extract.ExtractGameData(settings, null, false);
         settings.SetExtractPath(extractPath);
         settings.SetGameData(gameData);
@@ -74,7 +74,7 @@ public static class AsyncProgram {
         PackageTree? packageTree = null;
         if (versionGreaterThan2018) {
             // look for existing manifest
-            var manifestPath = Path.Combine(extractData.Config.ProjectRootPath, "Packages/manifest.json");
+            var manifestPath = Path.Combine(Paths.GetGameResourcesUnityProjectFolder(gameName), "Packages/manifest.json");
             if (File.Exists(manifestPath)) {
                 packageTree = PackageTree.FromFile(manifestPath);
             }
@@ -122,7 +122,13 @@ public static class AsyncProgram {
             }
             
             await Profiling.End();
+        } else {
+            if (gameData.ProjectVersion.LessThan(2018)) {
+                Utility.CopyOverScript(projectPath, "SimpleJSON");
+            }
         }
+        
+        Console.WriteLine(gameData.ProjectVersion.ToStringWithoutType());
         
         Profiling.Begin(
             "pre_fixes",

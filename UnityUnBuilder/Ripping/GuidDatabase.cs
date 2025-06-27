@@ -159,7 +159,7 @@ public record GuidDatabase {
     /// Go through each file mapping and write its guid back to disk.
     /// </summary>
     public static IEnumerable<UnityGuid> ReplaceGuids(IEnumerable<GuidDatabaseMerge> merge, GuidDatabase[] databases) {
-        var logPath = Path.Combine(Paths.LogsFolder, "replace_guids.log");
+        var logPath = Path.Combine(Paths.ToolLogsFolder, "replace_guids.log");
         File.Delete(logPath);
         using var writer = new StreamWriter(logPath);
         
@@ -339,7 +339,7 @@ public record GuidDatabase {
     }
     
     public void WriteToDisk(string name) {
-        var logPath = Path.Combine(Paths.LogsFolder, name);
+        var logPath = Path.Combine(Paths.ToolLogsFolder, name);
         File.Delete(logPath);
 
         using var writer = new StreamWriter(logPath);

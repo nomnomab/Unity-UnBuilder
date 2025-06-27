@@ -31,7 +31,7 @@ On Windows this is typically: ""C:/Program Files/Unity/Hub/Editor"".")]
         get {
             var outputPath = Path.GetFullPath(
                 Path.Combine(
-                    Settings.FolderPath,
+                    Paths.SettingsFolder,
                     "settings.toml"
                 )
             );

@@ -71,10 +71,14 @@ namespace Nomnom {
             }
             
             {
-                var path = Path.Combine(Application.dataPath, "..", "dlls_output.json");
-                Debug.Log("Writing json to " + dlls);
+                var path = Path.Combine(Application.dataPath, "../dlls_output.json");
+                Debug.Log("Writing json to " + path);
                 
-                var json = JsonUtility.ToJson(dlls, true);
+#if UNITY_5_3_OR_NEWER
+				var json = JsonUtility.ToJson(dlls, true);
+#else
+				var json = Utilities.SimpleJSON.JSON.ToJSONNode(dlls);
+#endif
                 File.WriteAllText(path, json);
             }
         }

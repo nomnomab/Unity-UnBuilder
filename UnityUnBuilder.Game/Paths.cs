@@ -24,7 +24,15 @@ public static class Paths {
         }
     }
     
-    public static string ResourcesFolder {
+    public static string SettingsFolder {
+        get {
+            var path = Path.Combine(ExeFolder, "settings");
+            EnsureDirectory(path);
+            return path;
+        }
+    }
+    
+    public static string ToolResourcesFolder {
         get {
             var path = Path.Combine(ExeFolder, "Resources");
             EnsureDirectory(path);
@@ -32,7 +40,7 @@ public static class Paths {
         }
     }
     
-    public static string LogsFolder {
+    public static string ToolLogsFolder {
         get {
             var path = Path.Combine(ExeFolder, "logs");
             EnsureDirectory(path);
@@ -40,12 +48,62 @@ public static class Paths {
         }
     }
     
-    public static string LibFolder {
+    public static string ToolLibFolder {
         get {
             var path = Path.Combine(ExeFolder, "lib");
             EnsureDirectory(path);
             return path;
         }
+    }
+    
+    public static string GamesFolder {
+        get {
+            var path = Path.Combine(ExeFolder, "games");
+            EnsureDirectory(path);
+            return path;
+        }
+    }
+    
+    public static string GetGameFolder(string gameName) {
+        var path = Path.Combine(GamesFolder, gameName);
+        EnsureDirectory(path);
+        return path;
+    }
+    
+    public static string GetGameExcludeFolder(string gameName) {
+        var path = GetGameFolder(gameName);
+        path = Path.Combine(path, "exclude");
+        
+        EnsureDirectory(path);
+        
+        return path;
+    }
+    
+    public static string GetGameExcludeUnityProjectFolder(string gameName) {
+        var path = GetGameExcludeFolder(gameName);
+        path = Path.Combine(path, "UnityProject");
+        
+        EnsureDirectory(path);
+        
+        return path;
+    }
+    
+    public static string GetGameResourcesFolder(string gameName) {
+        var path = GetGameFolder(gameName);
+        path = Path.Combine(path, "resources");
+        
+        EnsureDirectory(path);
+        
+        return path;
+    }
+    
+    public static string GetGameResourcesUnityProjectFolder(string gameName) {
+        var path = GetGameResourcesFolder(gameName);
+        path = Path.Combine(path, "UnityProject");
+        
+        EnsureDirectory(path);
+        
+        return path;
     }
     
     private static void EnsureDirectory(string path) {
@@ -68,16 +126,16 @@ public static class Paths {
         foreach (var root in roots) {
             var rootPath = Path.GetFullPath(root);
             tasks.Add(Task.Run(() => {
-                var shorter = Utility.ClampPathFolders(rootPath);
+                // var shorter = Utility.ClampPathFolders(rootPath);
                 var dirInfo = new DirectoryInfo(rootPath);
                 var files   = dirInfo.GetFiles("*.*", SearchOption.AllDirectories);
                 
-                AnsiConsole.MarkupLine($"[red]Deleting[/] {files.Length} file(s) for {shorter}...");
+                AnsiConsole.MarkupLine($"[red]Deleting[/] {files.Length} file(s) for {rootPath}...");
                 files.AsParallel()
                     .ForAll(x => x.Delete());
                 
                 Directory.Delete(rootPath, true);
-                AnsiConsole.MarkupLine($"[green]Finished[/] with {shorter}");
+                AnsiConsole.MarkupLine($"[green]Finished[/] with {rootPath}");
             }));
         }
         

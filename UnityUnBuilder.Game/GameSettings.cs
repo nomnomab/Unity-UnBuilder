@@ -14,24 +14,11 @@ public record GameSettings {
             .ToLower();
     }
     
-    public static string GetSaveFolder(string root, string gameName) {
-        gameName = GetGameName(gameName);
-            
-        var outputPath = Path.GetFullPath(
-            Path.Combine(
-                root,
-                gameName
-            )
-        );
-        
-        return outputPath;
-    }
-    
     public static string GetSavePath(string root, string gameName) {
         gameName = GetGameName(gameName);
             
         var outputPath = Path.GetFullPath(
-            GetSaveFolder(root, gameName)
+            Paths.GetGameFolder(gameName)
         );
         
         return outputPath;
@@ -57,16 +44,17 @@ public record GameSettings {
         }
     };
     
-    public static GameSettings? Load(string settingsProjectFolder, string root, string gameName) {
-        var savePath = GetSavePath(root, gameName);
+    public static GameSettings? Load(string gameName) {
+        var exeRoot  = Paths.ExeFolder;
+        var gamePath = Paths.GetGameFolder(gameName);
         
-        if (!DotNetProject.Exists(savePath)) {
-            DotNetProject.New(settingsProjectFolder, root, savePath);
+        if (!DotNetProject.Exists(gamePath)) {
+            DotNetProject.New(exeRoot, gamePath);
             
             var panel = new Panel(@$"It looks like this is your [underline]first time[/] trying to decompile ""{gameName}""!
-A dotnet project was created at '{savePath}', go ahead and modify it before running the tool again.
+A dotnet project was created at '{gamePath}', go ahead and modify it before running the tool again.
 
-{GameSettings.GetSavePath(root, gameName)}");
+{gamePath}");
             AnsiConsole.Write(panel);
             
             Environment.Exit(0);
@@ -74,11 +62,12 @@ A dotnet project was created at '{savePath}', go ahead and modify it before runn
         }
         
         // build and load project
-        var dllPath  = DotNetProject.Build(savePath);
+        var dllPath  = DotNetProject.Build(gamePath);
         var assembly = Assembly.LoadFile(dllPath);
         
         // find provider
-        var providerTypeName = $"{Path.GetFileNameWithoutExtension(savePath)}.GameSettingsProvider";
+        var providerTypeName = $"{gameName}.GameSettingsProvider";
+        Console.WriteLine(providerTypeName);
         var provider         = assembly.GetType(providerTypeName);
         if (provider == null) {
             throw new Exception($"{providerTypeName} not found in your user game project!");

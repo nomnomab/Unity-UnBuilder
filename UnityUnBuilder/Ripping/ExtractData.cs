@@ -85,7 +85,7 @@ public record ExtractData {
         var scriptsFolder = Path.Combine(firstPath, "Scripts");
         
         // exclude folders that match a dll name
-        foreach (var name in PackageAssociations.ExcludeNamesFromProject) {
+        foreach (var name in PackageDatabase.ExcludeAssembliesFromProject) {
             AnsiConsole.WriteLine($"Checking exclusion for \"{name}\"");
             foreach (var dir in Directory.GetDirectories(scriptsFolder, name, SearchOption.TopDirectoryOnly)) {
                 folderBlacklist.Add(dir);
@@ -95,7 +95,7 @@ public record ExtractData {
         }
         
         // exclude folders that start with a prefix
-        foreach (var name in PackageAssociations.ExcludePrefixesFromProject) {
+        foreach (var name in PackageDatabase.IgnoreAssemblyPrefixes) {
             AnsiConsole.WriteLine($"Checking exclusion for prefix \"{name}\"");
             foreach (var dir in Directory.GetDirectories(scriptsFolder, $"{name}*", SearchOption.TopDirectoryOnly)) {
                 folderBlacklist.Add(dir);
@@ -187,7 +187,7 @@ public record ExtractData {
     }
     
     public static IEnumerable<string> GetSafePaths(ToolSettings settings, string rootPath) {
-        var projectPath = settings.GetSettingsProjectFolder();
+        var projectPath = Paths.GetGameResourcesUnityProjectFolder(settings.GetGameName());
         
         if (Directory.Exists(projectPath)) {
             var dirs = Directory.GetDirectories(projectPath, "*.*", SearchOption.AllDirectories);
@@ -256,9 +256,9 @@ public record ExtractData {
                     var name = Path.GetFileName(dir);
                     ctx.Status($"Checking {Utility.ClampPathFolders(dir)}...");
                     
-                    var shouldDelete = PackageAssociations.FindAssociationFromDll(name) != null;
+                    var shouldDelete = PackageAssociations.FindAssociationsFromDll(name).Any();
                     if (!shouldDelete) {
-                        foreach (var excl in PackageAssociations.ExcludePrefixDelete) {
+                        foreach (var excl in PackageDatabase.ExcludeAssemblyFromProject) {
                             if (name.StartsWith(excl)) {
                                 shouldDelete = true;
                                 break;

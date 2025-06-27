@@ -13,7 +13,7 @@ public static class FixFiles {
         var gameName      = settings.GetGameName();
         
         // copy from settings folder
-        var projectFolder = settings.GetSettingsProjectFolder();
+        var projectFolder = Paths.GetGameResourcesUnityProjectFolder(gameName);
         
         if (Directory.Exists(projectFolder)) {
             AnsiConsole.WriteLine($"Custom files found for {gameName}, copying over...");
@@ -71,7 +71,7 @@ public static class FixFiles {
     /// </summary>
     public static async Task ImportCustomUnityPackages(ToolSettings settings) {
         var gameName       = settings.GetGameName();
-        var saveFolder     = GameSettings.GetSaveFolder(Settings.FolderPath, gameName);
+        var saveFolder     = settings.GetGameFolder();
         var packagesFolder = Path.Combine(saveFolder, "UnityPackages");
         
         if (!Directory.Exists(packagesFolder)) return;

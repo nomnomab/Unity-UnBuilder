@@ -60,7 +60,7 @@ public record ProfileStage {
     private readonly string _message;
     
     public string LogPath => Path.Combine(
-        Paths.LogsFolder,
+        Paths.ToolLogsFolder,
         "stages",
         $"stage_{_name}.log"
     );

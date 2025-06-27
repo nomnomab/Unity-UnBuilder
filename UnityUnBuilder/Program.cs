@@ -49,7 +49,7 @@ class Program {
     }
 
     static void LoadDllsFromLib() {
-        var libPath = Paths.LibFolder;
+        var libPath = Paths.ToolLibFolder;
 
         AnsiConsole.WriteLine("Loading dlls from /lib...");
         foreach (var dll in Directory.GetFiles(libPath, "*.dll", SearchOption.TopDirectoryOnly)) {

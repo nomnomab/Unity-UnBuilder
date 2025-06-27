@@ -50,6 +50,9 @@ The main goal of this project is to make a better version of my prior build->pro
     - Unity 5
     - Shaders aren't matching
     - Uses UnityScript :/
+- STRAFE
+    - Unity 5
+    - Uses UnityScript :/
 
 Untested on this version:
 - Content Warning
@@ -60,7 +63,7 @@ Untested on this version:
 
 - [ ] WWise integration
 - [ ] Localization package loads empty data
-- [ ] Better shader decompilation
+- [ ] Better shader decompilation (without a second AssetRipper partial project rip?)
 - [ ] Handle Unity5 + UnityScript
 - [ ] Addressables
 - [ ] ReWired

@@ -268,7 +268,7 @@ public static partial class Utility {
         
         var name         = Path.GetFileNameWithoutExtension(localPath);
         var scriptPath   = Path.Combine(folder, $"{name}.cs");
-        var path         = Path.Combine(Paths.ResourcesFolder, $"{name}.cs.txt");
+        var path         = Path.Combine(Paths.ToolResourcesFolder, $"{name}.cs.txt");
         using var stream = new StreamReader(path);
         var contents     = stream.ReadToEnd();
         
@@ -277,11 +277,13 @@ public static partial class Utility {
         }
         
         File.WriteAllText(scriptPath, contents);
+        AnsiConsole.WriteLine($"Wrote contents to '{scriptPath}'");
+        
         return scriptPath;
     }
     
     public static string GetEditorScriptFolder(string projectPath) {
-        return Path.Combine(projectPath, "Assets", "_CustomEditor", "Editor");
+        return Path.Combine(projectPath, "Assets/_CustomEditor/Editor");
     }
     
     public static string ClampPathFolders(string path, int maxFolders = 4) {
