@@ -83,7 +83,7 @@ Game configs, or rather the dotnet project folder for a specific game, is essent
 The structures looks like this (the tool generates the structure on first run of a game):
 ```
 UnityUnBuilder.exe
-/settings
+/games
     /mygame
         /resources
         mygame.csproj
