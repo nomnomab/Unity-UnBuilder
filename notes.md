@@ -70,6 +70,7 @@ Untested on this version:
 - [ ] FishNet un-generator
 - [ ] Baked mesh displays surfaces as black most of the time
 - [ ] Somehow drastically lower memory usage while fixing guids
+- [ ] Guid migration between past and future final projects
 
 ## Goals:
 - Determine Unity version automatically.
