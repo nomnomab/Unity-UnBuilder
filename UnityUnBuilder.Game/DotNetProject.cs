@@ -70,12 +70,6 @@ x64/
 
 # NuGet Packages
 *.nupkg
-# The packages folder can be ignored because of Package Restore
-**/packages/*
-# except build/, which is used as an MSBuild target.
-!**/packages/build/
-# Uncomment if necessary however generally it will be regenerated when needed
-#!**/packages/repositories.config
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
@@ -269,7 +263,7 @@ project.lock.json
 AppPackages/
         
 /exclude
-/resources
+/output
 /bin
 /obj
 ";
