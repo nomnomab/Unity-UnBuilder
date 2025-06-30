@@ -49,6 +49,9 @@ Read the [notes](notes.md) to get an idea on the current tool progress and curre
 ## Compiling this Tool
 
 ```bash
+git clone --recurse-submodules https://github.com/nomnomab/Unity-UnBuilder.git
+cd Unity-UnBuilder
+
 # builds the tool into ./UnityUnBuilder/bin/Release/net9.0/
 dotnet build -c Release
 ```
