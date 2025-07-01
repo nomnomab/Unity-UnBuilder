@@ -33,18 +33,29 @@
   <PropertyGroup>
     <PreBuildEvent>
       rmdir /s /q "$(TargetDir)lib"
-      <!-- rmdir /s /q "$(TargetDir)output" -->
       rmdir /s /q "$(TargetDir)logs"
       exit 0
     </PreBuildEvent>
   </PropertyGroup>
   
   <PropertyGroup>
-    <PostBuildEvent>
+    <!-- Windows -->
+    <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">
       if not exist "$(TargetDir)lib" mkdir "$(TargetDir)lib"
+      if not exist "$(TargetDir)settings" mkdir "$(TargetDir)settings"
+      if not exist "$(TargetDir)games" mkdir "$(TargetDir)games"
       cd /D "$(TargetDir)"
       ROBOCOPY . lib /XF *.exe *.config *.manifest $(AssemblyName).* CommandLine.dll Spectre.*.dll Tomlet.dll Microsoft.*.dll Newtonsoft.Json.dll settings*.* Microsoft.Extensions.*.dll /XD lib logs data de fr sv Resources settings games /E /IS /MOVE /NJH /NJS /NP
       exit 0
+    </PostBuildEvent>
+    
+    <!-- Unix -->
+    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
+      cd "$(TargetDir)"
+      mkdir -p "./lib"
+      mkdir -p "./settings"
+      mkdir -p "./games"
+      find "./" -maxdepth 1 -type f ! \( -name "*.exe" -o -name "*.config" -o -name "*.manifest" -o -name "$(AssemblyName).*" -o -name "CommandLine.dll" -o -name "Spectre.*.dll" -o -name "Tomlet.dll" -o -name "Microsoft.*.dll" -o -name "Newtonsoft.Json.dll" -o -name "settings*.*" -o -name "Microsoft.Extensions.*.dll" \) -exec mv {} "./lib" \;
     </PostBuildEvent>
   </PropertyGroup>
 </Project>
