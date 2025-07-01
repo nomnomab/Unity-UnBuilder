@@ -71,6 +71,7 @@ Untested on this version:
 - [ ] Baked mesh displays surfaces as black most of the time
 - [ ] Somehow drastically lower memory usage while fixing guids
 - [ ] Guid migration between past and future final projects
+- [ ] Support Linux usage and building
 
 ## Goals:
 - Determine Unity version automatically.

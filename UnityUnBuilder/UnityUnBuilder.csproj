@@ -50,6 +50,7 @@
     </PostBuildEvent>
     
     <!-- Unix -->
+    <!-- I don't use linux so I have no idea if this is proper lmao -->
     <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
       cd "$(TargetDir)"
       mkdir -p "./lib"
