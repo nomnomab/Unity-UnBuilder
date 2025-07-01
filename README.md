@@ -69,15 +69,15 @@ The project is given a wrapper for the `GameSettings` it expects it to return, w
 
 This project is built by this tool and the resulting dll is imported automatically for usage.
 
-There is also a `[GAME NAME]/exclude/Resources/UnityProject` folder where you can put files in the same structure as a unity project, and the tool will copy them into
-the final project at the same locations. This is useful if you get a finished package list and want to supply a `Resources/UnityProject/Packages/manifest.json`. Or if
-the project needs to fix up the old `InputSystem` via `Resources/UnityProject/ProjectSettings/InputManager.asset`.
+There is also a `[GAME NAME]/resources/UnityProject` folder where you can put files in the same structure as a unity project, and the tool will copy them into
+the final project at the same locations. This is useful if you get a finished package list and want to supply a `/UnityProject/Packages/manifest.json`. Or if
+the project needs to fix up the old `InputSystem` via `/UnityProject/ProjectSettings/InputManager.asset`.
 
 Most projects will need to experiment with what packages are actually used, and which versions are actually needed. The tool at the moment
 attempts to determine which packages are there for the dlls present, but it isn't fantastic as a final result.
 
 Tweaks and exclusions can be provided
-to the `GameConfig.Packages` object, and once you figure out all the packages needed, you can copy the `/UnityProject/Packages/manifest.json` into `[GAME NAME]/exclude/Resources/Packages/manifest.json` to skip the entire package process for future usage.
+to the `GameConfig.Packages` object, and once you figure out all the packages needed, you can copy the `/UnityProject/Packages/manifest.json` into `/UnityProject/Packages/manifest.json` to skip the entire package process for future usage.
 
 ## Sharing Game Config
 
