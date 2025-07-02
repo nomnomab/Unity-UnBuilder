@@ -15,7 +15,7 @@ class Program {
             LogFile.Create();
             LogFile.Header("Starting up");
 
-            LoadDllsFromLib();
+            // LoadDllsFromLib();
 
             // load settings
             var settings = AppSettings.Load();
@@ -48,25 +48,25 @@ class Program {
         }
     }
 
-    static void LoadDllsFromLib() {
-        var libPath = Paths.ToolLibFolder;
+    // static void LoadDllsFromLib() {
+    //     var libPath = Paths.ToolLibFolder;
 
-        AnsiConsole.WriteLine("Loading dlls from /lib...");
-        foreach (var dll in Directory.GetFiles(libPath, "*.dll", SearchOption.TopDirectoryOnly)) {
-            if (dll == null) continue;
+    //     AnsiConsole.WriteLine("Loading dlls from /lib...");
+    //     foreach (var dll in Directory.GetFiles(libPath, "*.dll", SearchOption.TopDirectoryOnly)) {
+    //         if (dll == null) continue;
 
-            var fileName = Path.GetFileNameWithoutExtension(dll);
-            if (!fileName.StartsWith("AssetRipper")) {
-                continue;
-            }
+    //         var fileName = Path.GetFileNameWithoutExtension(dll);
+    //         if (!fileName.StartsWith("AssetRipper")) {
+    //             continue;
+    //         }
 
-            try {
-                var assembly = Assembly.LoadFrom(dll);
-                AnsiConsole.WriteLine($"Loaded {assembly.GetName().Name}");
-            }
-            catch { }
-        }
-    }
+    //         try {
+    //             var assembly = Assembly.LoadFrom(dll);
+    //             AnsiConsole.WriteLine($"Loaded {assembly.GetName().Name}");
+    //         }
+    //         catch { }
+    //     }
+    // }
     
     public static void Quit() {
         Environment.Exit(0);
