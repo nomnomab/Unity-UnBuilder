@@ -48,6 +48,8 @@ Read the [notes](notes.md) to get an idea on the current tool progress and curre
 
 ## Compiling this Tool
 
+Requires .NET 9.0!
+
 ```bash
 git clone --recurse-submodules https://github.com/nomnomab/Unity-UnBuilder.git
 cd Unity-UnBuilder
